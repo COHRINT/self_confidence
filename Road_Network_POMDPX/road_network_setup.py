@@ -7,7 +7,7 @@ from __future__ import division
 __author__ = "Matthew Aitken"
 __copyright__ = "Copyright 2016, Cohrint"
 __credits__ = ["Matthew Aitken"]
-__license__ = "GPL"
+__license__ = "MIT"
 __version__ = "1.0.0"
 __maintainer__ = "Matthew Aitken"
 __email__ = "matthew@raitken.net"
@@ -19,6 +19,7 @@ import logging
 import copy
 import networkx as nx
 from lxml import etree
+from pre_defined_road_nets import test_roadnetwork
 
 logger = logging.getLogger(__name__)
 
@@ -231,46 +232,6 @@ def pomdpx_write(road_network,
     f = open('test.pomdpx', 'w')
     f.write(xml + '\n')
     f.write(etree.tostring(pomdpx, pretty_print=True))
-
-
-def test_roadnetwork():
-    rn = nx.Graph(name='roadnetwork')
-    rn.add_edge(1, 2, weight=5)
-    rn.add_edge(1, 10, weight=5)
-    rn.add_edge(2, 3, weight=5)
-    rn.add_edge(2, 9, weight=5)
-    rn.add_edge(3, 4, weight=5)
-    rn.add_edge(4, 5, weight=5)
-    rn.add_edge(4, 7, weight=5)
-    rn.add_edge(5, 6, weight=5)
-    rn.add_edge(6, 7, weight=5)
-    rn.add_edge(6, 8, weight=5)
-    rn.add_edge(7, 8, weight=5)
-    rn.add_edge(7, 11, weight=5)
-    rn.add_edge(8, 12, weight=5)
-    rn.add_edge(8, 13, weight=5)
-    rn.add_edge(9, 10, weight=5)
-    rn.add_edge(9, 11, weight=5)
-    rn.add_edge(10, 12, weight=5)
-    rn.add_edge(11, 12, weight=5)
-    rn.add_edge(12, 13, weight=5)
-    rn.node[13]['feature'] = 'exit'
-    rn.node[1]['feature'] = 'sensor'
-    rn.node[3]['feature'] = 'sensor'
-    rn.node[5]['feature'] = 'sensor'
-    rn.node[6]['feature'] = 'sensor'
-    rn.node[7]['feature'] = 'sensor'
-    rn.node[8]['feature'] = 'sensor'
-    rn.node[9]['feature'] = 'sensor'
-    rn.node[10]['feature'] = 'sensor'
-    rn.node[12]['feature'] = 'sensor'
-
-    def mapping(x):
-        return str(x)
-
-    rn = nx.relabel_nodes(rn, mapping)
-
-    return rn
 
 
 def expand_road_network(road_network, discritization):
