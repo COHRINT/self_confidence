@@ -5,7 +5,7 @@ import numpy as np
 import pygraphviz as PG
 import matplotlib.pyplot as plt
 from pre_defined_road_nets import roadnet1
-from toPBM import writePBM
+# from toPBM import writePBM
 
 g = roadnet1(edglen=2)
 
@@ -17,22 +17,22 @@ g_pg.graph_attr['dpi'] = 300
 
 # output graph file
 fname = 'roadnet1'
-g_pg.draw(fname+'.png',format='png',prog='neato')
+g_pg.draw(fname+'.svg',format='svg',prog='neato')
 
-# load image to convert to .pbm
-g_img = misc.imread(fname+'.png')[:,:,0]
-print(g_img.shape)
-
-# make square for gazebo code
-min_sze = min(g_img.shape)
-max_sze = max(g_img.shape)
-min_ax = g_img.shape.index(min_sze)
-g_img_sq = np.append(g_img,np.zeros((max_sze-min_sze,max_sze),dtype=int),axis=min_ax)
+# # load image to convert to .pbm
+# g_img = misc.imread(fname+'.svg')[:,:,0]
+# print(g_img.shape)
+#
+# # make square for gazebo code
+# min_sze = min(g_img.shape)
+# max_sze = max(g_img.shape)
+# min_ax = g_img.shape.index(min_sze)
+# g_img_sq = np.append(g_img,np.zeros((max_sze-min_sze,max_sze),dtype=int),axis=min_ax)
 
 # squash colors out
-blk = g_img==0
-wht = g_img>0
-g_img[blk] = 1
-g_img[wht] = 0
-
-writePBM(g_img,fname)
+# blk = g_img==0
+# wht = g_img>0
+# g_img[blk] = 1
+# g_img[wht] = 0
+#
+# writePBM(g_img,fname)

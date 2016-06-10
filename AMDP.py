@@ -396,7 +396,7 @@ if __name__ == '__main__':
     # print actions
     # print actions[action_idx]
 
-    
+
     # for i in range(0,7):
     #     b = [i, 0.001, 0.002, 0.002, 0.99, 0.001, 0.002, 0.002]
     #     idx = f(b, bbars)
