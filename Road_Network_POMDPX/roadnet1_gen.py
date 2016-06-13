@@ -5,7 +5,7 @@ import numpy as np
 import pygraphviz as PG
 import matplotlib.pyplot as plt
 from pre_defined_road_nets import roadnet1
-# from toPBM import writePBM
+from toPBM import writePBM
 
 g = roadnet1(edglen=2)
 
@@ -13,26 +13,36 @@ g = roadnet1(edglen=2)
 g_pg = nx.nx_agraph.to_agraph(g)
 
 # add graph property for desired dpi
-g_pg.graph_attr['dpi'] = 300
+g_pg.graph_attr['dpi'] = 100
+fmt = 'png'
+make_pbm = True
 
-# output graph file
-fname = 'roadnet1'
-g_pg.draw(fname+'.svg',format='svg',prog='neato')
+if fmt is 'svg':
+    # output graph file
+    fname = 'roadnet1'
+    g_pg.draw(fname+'.'+fmt,format=fmt,prog='neato')
+elif fmt is 'png':
+    # output graph file
+    fname = 'roadnet1'
+    g_pg.draw(fname+'.'+fmt,format=fmt,prog='neato')
 
-# # load image to convert to .pbm
-# g_img = misc.imread(fname+'.svg')[:,:,0]
-# print(g_img.shape)
-#
-# # make square for gazebo code
-# min_sze = min(g_img.shape)
-# max_sze = max(g_img.shape)
-# min_ax = g_img.shape.index(min_sze)
-# g_img_sq = np.append(g_img,np.zeros((max_sze-min_sze,max_sze),dtype=int),axis=min_ax)
+if make_pbm and fmt is 'png':
+    # load image to convert to .pbm
+    g_img = misc.imread(fname+'.'+fmt)
 
-# squash colors out
-# blk = g_img==0
-# wht = g_img>0
-# g_img[blk] = 1
-# g_img[wht] = 0
-#
-# writePBM(g_img,fname)
+    g_img_flat = np.sum(g_img,axis=2)/4
+    misc.imshow(g_img_flat)
+    print(g_img_flat)
+
+    # make square for gazebo code
+    min_sze = min(g_img_flat.shape)
+    max_sze = max(g_img_flat.shape)
+    min_ax = g_img_flat.shape.index(min_sze)
+    g_img_sq = np.append(g_img_flat,np.zeros((max_sze-min_sze,max_sze),dtype=int),axis=min_ax)
+    # squash colors out
+    blk = g_img_sq<=254
+    wht = g_img_sq>254
+    g_img_sq[blk] = 0
+    g_img_sq[wht] = 1
+
+    writePBM(g_img_sq,fname)
