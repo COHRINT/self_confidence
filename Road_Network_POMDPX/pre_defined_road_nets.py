@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-from __future__ import division
-
+import networkx as nx
 """Functions to produce various road networks
 
 """
@@ -13,7 +12,6 @@ __maintainer__ = "Brett Israelsen"
 __email__ = "brett.israelsen@colorado.edu"
 __status__ = "Development"
 
-import networkx as nx
 
 def test_roadnetwork():
     rn = nx.Graph(name='roadnetwork')
@@ -54,6 +52,7 @@ def test_roadnetwork():
 
     return rn
 
+
 def roadnet1(edglen=1):
     rn = nx.Graph(name='roadnetwork')
     rn.add_edge(1, 2)
@@ -85,6 +84,49 @@ def roadnet1(edglen=1):
     rn.node[9]['feature'] = 'sensor'
     rn.node[10]['feature'] = 'sensor'
     rn.node[12]['feature'] = 'sensor'
+
+    # Add some edge attributes
+    for e in rn.edge.keys():
+        for edg in rn.edge[e]:
+            # Edge lengths
+            rn.edge[e][edg]['len'] = str(edglen)
+
+            # Edge appearance
+            rn.edge[e][edg]['penwidth'] = '5'
+
+    # Add some node attributes
+    for n in rn.nodes_iter():
+        # Node shape
+        rn.node[n]['shape'] = 'circle'
+        rn.node[n]['fixedsize'] = 'true'
+        rn.node[n]['width'] = '0.3'
+
+        # Node appearance
+        rn.node[n]['style'] = 'filled'
+        rn.node[n]['label'] = ''
+        if rn.node[n].get('feature') is 'sensor':
+            rn.node[n]['color'] = 'red'
+            rn.node[n]['fillcolor'] = 'red'
+        elif rn.node[n].get('feature') is 'exit':
+            rn.node[n]['color'] = 'green'
+            rn.node[n]['fillcolor'] = 'green'
+        else:
+            rn.node[n]['color'] = 'black'
+            rn.node[n]['fillcolor'] = 'black'
+
+    def mapping(x):
+        return str(x)
+
+    rn = nx.relabel_nodes(rn, mapping)
+
+    return rn
+
+def roadnet2(edglen=1):
+    rn = nx.Graph(name='roadnetwork')
+    rn.add_edge(1, 2)
+    rn.add_edge(1, 10)
+    rn.add_edge(2, 3)
+    rn.add_edge(2, 9)
 
     # Add some edge attributes
     for e in rn.edge.keys():
