@@ -3,6 +3,7 @@ from __future__ import division
 import sys
 import networkx as nx
 from scipy import misc
+from scipy import ndimage
 import numpy as np
 # from networkx.drawing.nx_agraph import graphviz_layout # in order to use graphviz_layout we need a hack due to bug http://stackoverflow.com/questions/35279733/what-could-cause-networkx-pygraphviz-to-work-fine-alone-but-not-together
 # import pygraphviz as PG
@@ -33,6 +34,8 @@ def genImg(net, res):
     # add graph property for desired dpi
     g_pg.graph_attr['dpi'] = res
     fmt = 'png'
+
+    #fmt = 'svg'
     make_pbm = True
     fname = net
 
@@ -60,10 +63,14 @@ def genImg(net, res):
             append_ary = np.ones((max_sze, max_sze-min_sze), dtype=int)
 
         g_img_sq = np.append(g_img_flat, 255*append_ary, axis=min_ax)
-
+        #g_sobel = ndimage.sobel(g_img_sq)
+        # print(g_sobel)
+        # misc.imshow(g_sobel)
         # squash colors out
         blk = g_img_sq <= 254
         wht = g_img_sq > 254
+        # blk = np.abs(g_sobel) <= 0
+        # wht = np.abs(g_sobel) > 0
         g_img_sq[blk] = 0
         g_img_sq[wht] = 1
 
