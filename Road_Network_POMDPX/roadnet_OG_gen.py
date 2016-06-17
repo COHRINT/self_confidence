@@ -75,8 +75,8 @@ def genImg(net, res):
         g_img_sq[wht] = 1
 
         writePBM(g_img_sq, fname)
-        g_img_sq_rot90 = np.rot90(g_img_sq,k=1)
-        writePBM(g_img_sq_rot90, fname+'_rot90')
+        g_img_sq_rot90 = np.rot90(g_img_sq,k=2)
+        writePBM(g_img_sq_rot90, fname+'_rot180')
 
 
 def main():
