@@ -6,10 +6,10 @@ from scipy import misc
 from scipy import ndimage
 import numpy as np
 # from networkx.drawing.nx_agraph import graphviz_layout # in order to use graphviz_layout we need a hack due to bug http://stackoverflow.com/questions/35279733/what-could-cause-networkx-pygraphviz-to-work-fine-alone-but-not-together
-# import pygraphviz as PG
 # import matplotlib.pyplot as plt
 import pre_defined_road_nets
 from toPBM import writePBM
+import json
 
 """Outputs occupancy grid and a .png for a road network
 
@@ -23,10 +23,23 @@ __maintainer__ = "Brett Israelsen"
 __email__ = "brett.israelsen@colorado.edu"
 __status__ = "Development"
 
+__modifier__= "Sierra Williams"
+
 
 def genImg(net, res):
     roadnet_gen = getattr(pre_defined_road_nets, net)
     g = roadnet_gen(edglen=2)
+
+    #Use layout to grab nodes pos
+    position = nx.nx_agraph.graphviz_layout(g)
+
+    #To convert to gazebo measurements will need to multiply non key values by constant
+    # This line will be changed
+    gazebo_position = position
+
+    # Writes node positions to txt file with json
+    with open('node_position.json','w') as outfile:
+        json.dump(gazebo_position, outfile, sort_keys=True, indent=4)
 
     # convert to pygraphviz for better graphviz support
     g_pg = nx.nx_agraph.to_agraph(g)
@@ -50,7 +63,7 @@ def genImg(net, res):
         # load image to convert to .pbm
         g_img = misc.imread(fname+'.'+fmt)
 
-        # sum layers, divide by 4 becasue we summed 4 layers
+        # sum layers, divide by 4 becasue we summed 4 =ers
         g_img_flat = np.sum(g_img, axis=2)/4
 
         # make square for gazebo code

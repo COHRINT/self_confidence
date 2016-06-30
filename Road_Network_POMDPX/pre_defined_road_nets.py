@@ -124,6 +124,9 @@ def roadnet1(edglen=1):
 
 def roadnet1_blk(edglen=1):
     rn = nx.Graph(name='roadnetwork')
+
+    # rn.graph['bgcolor'] = 'black'
+
     rn.add_edge(1, 2)
     rn.add_edge(1, 10)
     rn.add_edge(2, 3)
@@ -161,16 +164,20 @@ def roadnet1_blk(edglen=1):
             rn.edge[e][edg]['len'] = str(edglen)
 
             # Edge appearance
-            rn.edge[e][edg]['penwidth'] = '5'
+            rn.edge[e][edg]['penwidth'] = '25'
 
     # Add some node attributes
     for n in rn.nodes_iter():
         # Node shape
         rn.node[n]['shape'] = 'circle'
         rn.node[n]['fixedsize'] = 'true'
-        rn.node[n]['width'] = '0.3'
+
+        # Changes to make node bigger and fit better with penwidth=25
+        rn.node[n]['width'] = '1.0'
+        rn.node[n]['height'] = '1.0'
 
         # Node appearance
+        #Comment next two lines to reveal numbered nodes
         rn.node[n]['style'] = 'filled'
         rn.node[n]['label'] = ''
         if rn.node[n].get('feature') is 'sensor':
@@ -182,6 +189,7 @@ def roadnet1_blk(edglen=1):
         else:
             rn.node[n]['color'] = 'black'
             rn.node[n]['fillcolor'] = 'black'
+        
 
     def mapping(x):
         return str(x)
