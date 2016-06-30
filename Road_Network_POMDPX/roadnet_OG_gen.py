@@ -35,11 +35,14 @@ def genImg(net, res):
 
     #To convert to gazebo measurements will need to multiply non key values by constant
     # This line will be changed
-    gazebo_position = position
+
+
+    for key, value in position.iteritems():
+        position[key] = (value[0]*.206, value[1]*.206) 
 
     # Writes node positions to txt file with json
     with open('node_position.json','w') as outfile:
-        json.dump(gazebo_position, outfile, sort_keys=True, indent=4)
+        json.dump(position, outfile, sort_keys=True, indent=4)
 
     # convert to pygraphviz for better graphviz support
     g_pg = nx.nx_agraph.to_agraph(g)
