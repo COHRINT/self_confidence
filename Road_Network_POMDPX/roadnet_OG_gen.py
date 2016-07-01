@@ -23,8 +23,7 @@ __version__ = "1.0.0"
 __maintainer__ = "Brett Israelsen"
 __email__ = "brett.israelsen@colorado.edu"
 __status__ = "Development"
-
-__modifier__= "Sierra Williams"
+__modifier__ = "Sierra Williams"
 
 
 def genImg(net, res):
@@ -59,7 +58,9 @@ def genImg(net, res):
 
         # find the scaling between layout and png
         image_size = get_image_size(fname+"."+fmt)
-        scale = np.divide(image_size,np.abs(bb_num[0:1]))
+        print(image_size)
+        scale = np.divide(image_size,[bb_num[2]-bb_num[0], bb_num[3]-bb_num[1]])
+        print(scale)
 
         pixel_pos = {}
         for key in pos:
