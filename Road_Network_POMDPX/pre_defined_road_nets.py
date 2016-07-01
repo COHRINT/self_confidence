@@ -187,9 +187,10 @@ def roadnet1_blk(edglen=1):
             rn.node[n]['color'] = 'black'
             rn.node[n]['fillcolor'] = 'black'
         else:
+            rn.node[n]['feature'] = 'none'
             rn.node[n]['color'] = 'black'
             rn.node[n]['fillcolor'] = 'black'
-        
+
 
     def mapping(x):
         return str(x)
