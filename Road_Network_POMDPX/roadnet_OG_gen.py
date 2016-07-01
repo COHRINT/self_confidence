@@ -11,7 +11,7 @@ import pre_defined_road_nets # file for road net constructors
 from get_image_size import get_image_size # for getting the size of an image
 from toPBM import writePBM # writing out a binary occupancy grid image
 import json # exporting data
-
+import ipdb
 """Outputs occupancy grid and a .png for a road network
 
 """
@@ -32,9 +32,12 @@ def genImg(net, res):
 
     # convert to pygraphviz for better graphviz support
     g_pg = nx.nx_agraph.to_agraph(g)
+    __loc_garbage = nx.nx_agraph.graphviz_layout(g, prog='neato', args='') # If I take this away then it segfaults when we use g_pg.graph_attr below...
 
     # add graph property for desired dpi
     g_pg.graph_attr['dpi'] = res
+    g_pg.graph_attr['ratio'] = 'fill'
+    g_pg.graph_attr['size'] = 10.0
 
     fmt = 'png'
     # fmt = 'svg'
@@ -46,11 +49,14 @@ def genImg(net, res):
         g_pg.draw(fname+'.'+fmt, format=fmt, prog='neato')
     elif fmt is 'png':
         # output graph file
-        g_pg.draw(fname+'.'+fmt, format=fmt, prog='neato')
+        g_pg.layout(prog='neato',args='')
+        g_pg.draw(fname+'.'+fmt, format=fmt)
 
         # get positions for use in Gazebo world creation
-        pos = nx.nx_agraph.graphviz_layout(g, prog='neato', args='')
-        g_pg.layout(prog='neato',args='')
+        pos = {}
+        for i in g_pg.nodes_iter():
+            n = g_pg.get_node(i)
+            pos[n.get_name()] = [ float(i) for i in n.attr['pos'].split(',')]
 
         # graphviz bounding box layout
         bb = g_pg.graph_attr['bb']
@@ -58,9 +64,9 @@ def genImg(net, res):
 
         # find the scaling between layout and png
         image_size = get_image_size(fname+"."+fmt)
-        print(image_size)
-        scale = np.divide(image_size,[bb_num[2]-bb_num[0], bb_num[3]-bb_num[1]])
-        print(scale)
+        bb_x =  bb_num[2]-bb_num[0]
+        bb_y = bb_num[3]-bb_num[1]
+        scale = np.divide(image_size, [bb_x, bb_y])
 
         pixel_pos = {}
         for key in pos:
@@ -71,7 +77,7 @@ def genImg(net, res):
             node_atts[key] = g.node[key]['feature']
 
         with open(fname+".json","w") as outfile:
-           json.dump({'positions':pixel_pos,'feature':node_atts}, outfile, indent=4)
+           json.dump({'pixel_positions':pixel_pos,'original_positions':pos,'feature':node_atts}, outfile, indent=4)
 
     if make_pbm and fmt is 'png':
         # load image to convert to .pbm
