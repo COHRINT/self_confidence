@@ -32,12 +32,12 @@ def genImg(net, res):
 
     # convert to pygraphviz for better graphviz support
     g_pg = nx.nx_agraph.to_agraph(g)
-    __loc_garbage = nx.nx_agraph.graphviz_layout(g, prog='neato', args='') # If I take this away then it segfaults when we use g_pg.graph_attr below...
+    __loc_garbage = nx.nx_agraph.graphviz_layout(g, prog='neato', args='') # If I take this away then it segfaults when we use g_pg.graph_attr below... I don't want to use this because it doesn't take into account all of the scaling, and resolutions stuff.
 
     # add graph property for desired dpi
-    g_pg.graph_attr['dpi'] = res
-    g_pg.graph_attr['ratio'] = 'fill'
-    g_pg.graph_attr['size'] = 10.0
+    g_pg.graph_attr['dpi'] = res # `dots per inch` standard for a .png is 96
+    g_pg.graph_attr['size'] = 10.0 # in inches, given that there is only one value, both should be equal to this.
+    g_pg.graph_attr['ratio'] = 'fill' # this means that the dimensions will need to be scaled in some way in order to match the size
 
     fmt = 'png'
     # fmt = 'svg'
