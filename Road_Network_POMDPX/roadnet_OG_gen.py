@@ -82,10 +82,10 @@ def genImg(net, res):
     if make_pbm and fmt is 'png':
         # load image to convert to .pbm
         g_img = misc.imread(fname+'.'+fmt)
-
+        print(np.shape(g_img))
         # sum layers, divide by 4 becasue we summed 4 =ers
-        g_img_flat = np.sum(g_img, axis=2)/4
-
+        g_img_flat = np.sum(g_img, axis=2)/3
+        print(g_img_flat)
         blk = g_img_flat <= 254
         wht = g_img_flat > 254
 
