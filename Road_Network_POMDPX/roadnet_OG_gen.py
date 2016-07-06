@@ -61,16 +61,14 @@ def genImg(net, res):
         # graphviz bounding box layout
         bb = g_pg.graph_attr['bb']
         bb_num = [float(i) for i in bb.split(',')]
-        print(bb_num)
         # find the scaling between layout and png
         image_size = get_image_size(fname+"."+fmt)
-        print(image_size)
+
         bb_x =  bb_num[2]-bb_num[0]
         bb_y = bb_num[3]-bb_num[1]
+
         scale = np.divide(image_size, [bb_x, bb_y])
-        print(scale)
         pixel_pos = {}
-        print(pos)
         for key in pos:
             pixel_pos[key] = [pos[key][0]*scale[0], pos[key][1]*scale[1]]
 
@@ -88,31 +86,13 @@ def genImg(net, res):
         # sum layers, divide by 4 becasue we summed 4 =ers
         g_img_flat = np.sum(g_img, axis=2)/4
 
-        # make square for gazebo code
-        min_sze = min(g_img_flat.shape)
-        max_sze = max(g_img_flat.shape)
-        min_ax = g_img_flat.shape.index(min_sze)
-        if min_ax == 0:
-            append_ary = np.ones((max_sze-min_sze, max_sze), dtype=int)
-        else:
-            append_ary = np.ones((max_sze, max_sze-min_sze), dtype=int)
+        blk = g_img_flat <= 254
+        wht = g_img_flat > 254
 
-        g_img_sq = np.append(g_img_flat, 255*append_ary, axis=min_ax)
-        # g_sobel = ndimage.sobel(g_img_sq)
-        # print(g_sobel)
-        # misc.imshow(g_sobel)
-        # squash colors out
-        blk = g_img_sq <= 254
-        wht = g_img_sq > 254
-        # blk = np.abs(g_sobel) <= 0
-        # wht = np.abs(g_sobel) > 0
-        g_img_sq[blk] = 0
-        g_img_sq[wht] = 1
+        g_img_flat[blk] = 0
+        g_img_flat[wht] = 1
 
-        writePBM(g_img_sq, fname)
-        g_img_sq_rot90 = np.rot90(g_img_sq,k=2)
-        writePBM(g_img_sq_rot90, fname+'_rot180')
-
+        writePBM(g_img_flat, fname)
 
 def main():
     net = sys.argv[1]
