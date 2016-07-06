@@ -35,7 +35,7 @@ def genImg(net, res):
     __loc_garbage = nx.nx_agraph.graphviz_layout(g, prog='neato', args='') # If I take this away then it segfaults when we use g_pg.graph_attr below... I don't want to use this because it doesn't take into account all of the scaling, and resolutions stuff.
 
     # add graph property for desired dpi
-    g_pg.graph_attr['dpi'] = res # `dots per inch` standard for a .png is 96
+    g_pg.graph_attr['dpi'] = res # `dots per inch` default for a .png is 96
     g_pg.graph_attr['size'] = 10.0 # in inches, given that there is only one value, both should be equal to this.
     g_pg.graph_attr['ratio'] = 'fill' # this means that the dimensions will need to be scaled in some way in order to match the size
 
@@ -61,16 +61,18 @@ def genImg(net, res):
         # graphviz bounding box layout
         bb = g_pg.graph_attr['bb']
         bb_num = [float(i) for i in bb.split(',')]
-
+        print(bb_num)
         # find the scaling between layout and png
         image_size = get_image_size(fname+"."+fmt)
+        print(image_size)
         bb_x =  bb_num[2]-bb_num[0]
         bb_y = bb_num[3]-bb_num[1]
         scale = np.divide(image_size, [bb_x, bb_y])
-
+        print(scale)
         pixel_pos = {}
+        print(pos)
         for key in pos:
-            pixel_pos[key] = [(pos[key][0]+np.abs(bb_num[0]))*scale[0], (pos[key][1]+np.abs(bb_num[1]))*scale[1]]
+            pixel_pos[key] = [pos[key][0]*scale[0], pos[key][1]*scale[1]]
 
         node_atts = {}
         for key in g.nodes():
