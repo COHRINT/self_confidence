@@ -42,7 +42,7 @@ def pomdpx_write(road_network,
 
     rn = road_network
     actions = ['f', 'b', 'l', 'r', 's']
-    ugv_iter = rn.nodes()
+    ugv_iter = list(rn.nodes())
     ugv_iter.append('T')
 
     xml = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>"
@@ -402,8 +402,7 @@ def pursuer_transition_function(road_network):
 def main():
     rn = test_roadnetwork()
     rn, paths, path_lengths = expand_road_network(rn, 1)
-    description_text = 'The pursuer is attempting to capture the UGV ' + \
-                       'before it can reach the exit.'
+    description_text = 'The pursuer is attempting to capture the UGV ' + 'before it can reach the exit.'
     pomdpx_write(rn, ugv_transition_function, pursuer_transition_function,
                  description_text=description_text)
 
