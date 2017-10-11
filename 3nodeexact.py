@@ -220,7 +220,7 @@ def main(save=False):
     V, P, R, W, PO = MDP(bs, T, B, tp, fp)
 
     if save:
-        folder = '/home/matt/Dropbox/Research/SavedResults/3nodeexact/'
+        folder = 'SavedResults/3nodeexact/'
         np.save(folder + 'V', V)
         np.save(folder + 'P', P)
         np.save(folder + 'R', R)
@@ -233,7 +233,7 @@ def main(save=False):
 
 def load_vars():
     try:
-        folder = '/home/matt/Dropbox/Research/SavedResults/3nodeexact/'
+        folder = 'SavedResults/3nodeexact/'
         V = np.load(folder + 'V.npy').tolist()
         P = np.load(folder + 'P.npy').tolist()
         R = np.load(folder + 'R.npy').tolist()

@@ -277,7 +277,7 @@ def main(save=False):
     V, P, R, W = AMDP(bbars, T, B, tp, fp)
 
     if save:
-        folder = '/home/matt/Dropbox/Research/SavedResults/7nodeamdp/'
+        folder = 'SavedResults/7nodeamdp/'
         np.save(folder + 'V', V)
         np.save(folder + 'P', P)
         np.save(folder + 'R', R)
@@ -289,7 +289,7 @@ def main(save=False):
 
 def load_vars():
     try:
-        folder = '/home/matt/Dropbox/Research/SavedResults/7nodeamdp/'
+        folder = 'SavedResults/7nodeamdp/'
         V = np.load(folder + 'V.npy').tolist()
         P = np.load(folder + 'P.npy').tolist()
         R = np.load(folder + 'R.npy').tolist()
