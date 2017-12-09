@@ -76,7 +76,37 @@ function original_roadnet(;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,se
     return mg
 end
 
+function medium_roadnet(;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,sensor_rwd::Float64=-1.)::MetaGraph
+    srand(2111) #fix the rng seed for reproducibility
+    g_connected = false
+    while !g_connected
+        g = erdos_renyi(45,0.05) #aiming for max degree of ~5
+        g_connected = is_connected(g)
+    end
+
+    # make graph with metadata
+    mg = MetaGraph(g)
+    set_prop!(mg,:POMDPgraph,true) # this indicates that we created this graph with POMDP structure (as defined by me)
+    set_prop!(mg,:description, "medium sized road network")
+    set_prop!(mg,:reward_dict, Dict([(:exit,exit_rwd),(:caught,caught_rwd),(:sensor,sensor_rwd)]))
+    set_prop!(mg,:exit_nodes,[32])
+
+    for i in vertices(mg)
+        set_prop!(mg,i,:id,i)
+
+        if i in mg.gprops[:exit_nodes]
+            state_prop = :exit
+        else
+            state_prop = :sensor
+        end
+        set_prop!(mg,i,:state_property,state_prop)
+    end
+    set_net_props!(mg)
+    return mg
+end
 ###### add other road networks here.....
+
+##### display stuff
 function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),pursuer_locs::Array{Int64}=empty!([1]),action_locs::Array{Int64}=empty!([1]),fname::String="test",ftype::Symbol=:svg)
     # find exit nodes
     node_styles = Dict()
@@ -102,9 +132,9 @@ function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),purs
     end
 
     t = TikzGraphs.plot(g.graph,Layouts.Spring(randomSeed=52), node_style=other_node_style,node_styles=node_styles)
-    t.options = "" # add "scale=2.0" to scale image, but doesn't look too good
+    t.options = "scale=2.0" # add "scale=2.0" to scale image, but doesn't look too good
     if ftype == :svg
-        save(SVG(fname),t)
+        TikzPictures.save(SVG(fname),t)
     else
         println("do not support other outputs yet")
     end

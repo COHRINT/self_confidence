@@ -168,13 +168,52 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
-    its_rng = [1000]
+    its_rng = [100]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     d_rng = collect(1:10)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
-    steps = 75 # number of steps the simulation runs
-    repeats = 250 # how many times to repeat each simlation
+    steps = 7 # number of steps the simulation runs
+    repeats = 20 # how many times to repeat each simlation
+    dis_rwd = false
+
+    with_logger(logger) do
+        run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,max_steps=steps,num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
+    end
+
+    if logtofile
+        # using the "open(...) do f ... syntax printed the length of the file at the end, this ways doesn't do that
+        f = open(logfname,"w")
+        logtxt = strip(String(take!(buffer)));
+        logtxt = replace(logtxt, r"^\e\[1m\e\[..m(.- )\e\[39m\e\[22m", s"\1")
+        write(f,logtxt)
+        close(f)
+    end
+end
+
+function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,img_fname="logs/$(now()).png")
+    #### Logging
+    if logtofile
+        buffer = IOBuffer()
+        logger = SimpleLogger(buffer)
+        configure_logging(min_level=loglvl)
+    else
+        logger = global_logger()
+        configure_logging(min_level=loglvl)
+    end
+
+    g = medium_roadnet(exit_rwd=2000.,caught_rwd=-2000.,sensor_rwd=-200.)
+    mdp = roadnet_with_pursuer(g,tp=0.8,d=0.9)
+
+    #  its_rng = (1., 10000.)
+    #  its_rng = collect(100:100:1000)
+    its_rng = [100]
+    #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
+    d_rng = collect(1:10)
+    #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
+    #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
+    steps = 7 # number of steps the simulation runs
+    repeats = 5 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
