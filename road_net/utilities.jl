@@ -10,6 +10,22 @@ function latin_hypercube_sampling{T}(mins::AbstractVector{T}, maxs::AbstractVect
     return result'
 end
 
+function return_indices(ary::Vector)
+    u = unique(ary)
+    idx = enumerate(u)
+    ticks = similar(u)
+    labels = Array{String}(size(u))
+
+    indices = Vector{Int64}(length(ary))
+    for x in idx
+        indices[ary.==x[2]] = x[1]
+        ticks[x[1]] = x[1]
+        labels[x[1]] = "$(x[2])"
+    end
+    return indices, ticks, labels
+end
+
+
 ## Code below is not fully implemented
 
 function my_lhs(n::Int64,p::Int64;smooth::Symbol=:off,iterations::Int64=5,criterion::Symbol=:maxmin)

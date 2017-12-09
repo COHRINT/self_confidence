@@ -65,3 +65,21 @@ function prepend_zeros(s::String;tot_chars::Int64=5)
     end
     return zeros*s
 end
+
+function print_hist(mdp::roadnet_with_pursuer,hist::MDPHistory)
+    hist_log = ""
+    it = 1
+    for (s,a,r,sp) in eachstep(hist, "s,a,r,sp")
+        #  a = action(policy,s)
+        a_int = POMDPs.action_index(mdp,a)
+        if POMDPs.action_index(mdp,a) <= length(neighbors(mdp.road_net,s.node))
+            a_loc = neighbors(mdp.road_net,s.node)[a_int]
+        else
+            a_loc = empty!([1])
+        end
+        h_str = "$it --- taking action: $a, from node $(s.node) to get to node: $(sp.node) pursuer going to: $(sp.pnode) rwd: $r"
+        hist_log = "$hist_log \n $h_str"
+        it += 1
+    end
+    return "$hist_log \nreward: $(undiscounted_reward(hist)), discounted: $(discounted_reward(hist))"
+end

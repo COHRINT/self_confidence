@@ -10,9 +10,15 @@ include("road_net_visualize.jl")
 include("utilities.jl")
 
 function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int64=25,
-                        its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],num_repeats::Int64=10)
+                        its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],num_repeats::Int64=10,discounted_rwd::Bool=true,img_fname::String="test.png")
     rnet = mdp.road_net.gprops[:net_stats]
     net_diam = rnet.diam
+
+    if discounted_rwd
+        dis_str = "Discounted Rwd"
+    else
+        dis_str = "Rwd"
+    end
 
     @info md"# Beginning Experiment"
     @debug "Using:" max_steps its_vals d_vals num_repeats rnet mdp.tprob mdp.discount mdp.reward_vals mdp.reward_states
@@ -24,9 +30,11 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     its_axis = Vector{Int64}(0)
     d_axis = Vector{Int64}(0)
 
+    exp_const = 5.
+
     for its in its_vals
         for d in d_vals
-            s = MCTSSolver(n_iterations=its,depth=d,exploration_constant=5.,enable_tree_vis=true)
+            s = MCTSSolver(n_iterations=its,depth=d,exploration_constant=exp_const,enable_tree_vis=true)
             push!(its_axis,its)
             push!(d_axis,d)
             push!(policy_tilde,solve(s,mdp))
@@ -37,61 +45,114 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
 
     starting_state = roadnet_pursuer_state(1,4)
 
-    function reward_grab(mdp::roadnet_with_pursuer,policy::MCTS.MCTSPlanner,hist::HistoryRecorder,s::roadnet_pursuer_state)
+    function reward_grab(mdp::roadnet_with_pursuer,policy::MCTS.MCTSPlanner,hist::HistoryRecorder,s::roadnet_pursuer_state;discounted::Bool=true,return_hist::Bool=false)
         hist = simulate(hist,mdp,policy,s)
+        if return_hist
+            return hist
+        end
 
         # discounted reward takes time to solution into account
-        return discounted_reward(hist)
+        if discounted
+            return discounted_reward(hist)
+        else
+            return undiscounted_reward(hist)
+        end
     end
 
     PT = repmat(policy_tilde,1,num_repeats)
     HT = repmat(hist_tilde,1,num_repeats)
     IA = repmat(its_axis,1,num_repeats)
     DA = repmat(d_axis,1,num_repeats)
+    @debug "PT $(size(PT)),HT $(size(HT)),IA $(size(IA)),DA $(size(DA))"
     utilities = Array{Float64}(size(PT))
+    sim_time = Array{Int64}(size(PT))
     idx = 1
-    #  p_meter = Progress(length(PT[:]),desc="Calculating Utilities:",color=:yellow,barglyphs=BarGlyphs("[=> ]"))
 
     @info md"# Simulations"
     tic()
     for (p,h) in zip(PT,HT)
         @info "Running Simulations" progress=idx/length(PT)
-        utilities[idx] = reward_grab(mdp,p,h,starting_state)
-        #  ProgressMeter.next!(p_meter)
+        utilities[idx] = reward_grab(mdp,p,h,starting_state,discounted=discounted_rwd)
+        hist = reward_grab(mdp,p,h,starting_state,discounted=discounted_rwd,return_hist=true)
+        sim_time[idx] = length(hist)
+        if false
+          @debug print_hist(mdp,hist)
+        end
+
         idx += 1
     end
     @info "Completed $(length(PT)) Simulations in $(toq()) seconds"
 
-    #  U = reshape(utilities,length(policy_tilde),length(hist_tilde));
-    #
-    U = reshape(utilities,length(its_axis),:);
-    U2 = reshape(utilities,:,length(its_axis));
-
-    #  cx = repmat(its_axis',length(d_axis),1)
-    #  cy = repmat(d_axis,1,length(its_axis))
+    U = reshape(utilities,length(its_axis),:)
+    ST = reshape(sim_time,length(its_axis),:)
 
     # Save off data
     JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,
              "d_axis",d_axis,"utilities",utilities,"u_vals",mean(utilities,2)[:],
-            "max_steps",max_steps)
+            "max_steps",max_steps,"U",U, "ST",ST,"IA",IA,"DA",DA,"mdp",mdp,"PT",PT,"HT",HT)
 
-    #  println("its: $(size(its_axis)), d: $(size(d_axis)), u: $(size(utilities))")
+    ####### Plotting #######
+    ## Reward vs d
     D = [its_axis d_axis mean(utilities,2)]
     D2 = [IA[:] DA[:] U[:]]
-    v = violin(D2[:,2],D2[:,3])
+    if length(unique(U[:])) == 1
+        # plots will fail, because there aren't enough unique y's
+        @warn "not enough unique y's, exiting without producing plots"
+        return
+    end
+
+    @debug "IA $IA\nDA $DA\nU $U"
+    @debug "D2 $D2"
+    @debug "$(D2[:,2]), $(D2[:,3])"
+
+    #  theme(:dark)
+    if true
+        l = @layout [a{.1h};grid(1,2)]
+        p = Plots.plot(layout=l,size=(1500,900)) #conflict with TikzGraphs if not explicitly Plots.plot()
+        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_const\nD= $d_vals\nBased on $num_repeats separate simulations"
+        #  plot!(grid=false,annotation=(0.5,0.5,ttl_str),ticks=([]),fgborder=:white,subplot=1)
+        plot!(annotation=(0.5,0.5,ttl_str),framestyle=:none,subplot=1)
+
+        (x_vals,x_ticks,x_lbls) = return_indices(DA[:])
+        boxplot!(x_vals,U[:],label="",fillalpha=0.8,subplot=2)
+        #  vline!([mdp.road_net.gprops[:net_stats].diam],label="network diameter",lw=4,subplot=2)
+        violin!(x_vals,U[:],side=:right,marker=(0.2,:blue,stroke(0)),label="",fillalpha=0.2,subplot=2)
+        plot!(xlabel="MCTS Depth",
+              ylabel="$dis_str",subplot=2)
+        xticks!(x_ticks,x_lbls,subplot=2)
+        @debug x_ticks x_lbls
+
+        ## Reward vs Iterations
+        #  (n_vals,n_ticks,n_lbls) = return_indices(IA[:])
+        boxplot!(x_vals,ST[:],label="",fillalpha=0.8,subplot=3)
+        violin!(x_vals,ST[:],side=:right,marker=(0.2,:blue,stroke(0)),label="",fillalpha=0.2,subplot=3)
+        plot!(xlabel="MCTS Depth",
+              ylabel="Time to termination",subplot=3)
+        xticks!(x_ticks,x_lbls,subplot=3)
+        #  @debug n_ticks n_lbls
+
+    else
+        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_const\nD= $d_vals\nBased on $num_repeats separate simulations"
+
+        p = Plots.plot(size=(900,600)) #conflict with TikzGraphs if not explicitly Plots.plot()
+        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_const\nBased on $num_repeats separate simulations"
+        boxplot!(D2[:,2],D2[:,3],label="",fillalpha=0.8)
+        vline!([mdp.road_net.gprops[:net_stats].diam],label="network diameter",lw=4)
+        violin!(D2[:,2],D2[:,3],side=:right,marker=(0.2,:blue,stroke(0)),label="",fillalpha=0.2)
+
+        plot!(title = ttl_str, xlabel="MCTS Depth",ylabel="$dis_str",xtickfont=font(10,"sans-serif"))
+    end
+
     if current_logger().default_min_level == MicroLogging.Debug
-        @debug "displaying plot(s)"
-        display(v)
+        @info "displaying plot(s)"
+        display(p)
     else
         @info "saving plot(s) to file"
-        savefig(v,"test.png")
+        savefig(p,img_fname)
     end
-    #corrplot(D)
-    #  corrplot(D2, labels=["its","d","U"])
-    #  scatter3d(its_axis,d_axis,mean(utilities,2)[:])
 end
 
-function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug)
+function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,img_fname="logs/$(now()).png")
     #### Logging
     if logtofile
         buffer = IOBuffer()
@@ -102,18 +163,22 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
         configure_logging(min_level=loglvl)
     end
 
-    g = original_roadnet(exit_rwd=1000.,sensor_rwd=-50.)
-    mdp = roadnet_with_pursuer(g,tp=0.3)
+    g = original_roadnet(exit_rwd=2000.,caught_rwd=-2000.,sensor_rwd=-200.)
+    mdp = roadnet_with_pursuer(g,tp=0.8,d=0.9)
 
     #  its_rng = (1., 10000.)
-    its_rng = [10]
+    #  its_rng = collect(100:100:1000)
+    its_rng = [1000]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     d_rng = collect(1:10)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
+    steps = 75 # number of steps the simulation runs
+    repeats = 250 # how many times to repeat each simlation
+    dis_rwd = false
 
     with_logger(logger) do
-        run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng)
+        run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,max_steps=steps,num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
     end
 
     if logtofile

@@ -7,10 +7,8 @@ include("network_library.jl")
 struct roadnet_pursuer_state
     node::Int64 # current UGV node
     pnode::Int64 # current puruser node
-    exit::Bool #whether this is a termination state or not
 end
 
-roadnet_pursuer_state(n::Int64,p::Int64) = roadnet_pursuer_state(n,p,false)
 samenode(s1::roadnet_pursuer_state,s2::roadnet_pursuer_state) = s1.node == s2.node && s1.pnode == s1.pnode
 
 
@@ -20,35 +18,36 @@ type roadnet_with_pursuer <: MDP{roadnet_pursuer_state,Symbol}
     discount::Float64 #discount factor
     reward_vals::Vector{Float64}
     reward_states::Vector{roadnet_pursuer_state}
+    exit_nodes::Vector{Int64} #list of states that are exits
     road_net::MetaGraph
 end
 
 function roadnet_with_pursuer(rn::MetaGraph;tp::Float64=1.0,
                                d::Float64=0.9,
                                rv::Vector{Float64}=rewards(rn)[2],
-                               rs::Vector{roadnet_pursuer_state}=rewards(rn)[1])
-    return roadnet_with_pursuer(tp,d,rv,rs,rn)
+                               rs::Vector{roadnet_pursuer_state}=rewards(rn)[1],
+                               es::Vector{Int64}=exit_nodes(rn))
+    return roadnet_with_pursuer(tp,d,rv,rs,es,rn)
 end
 
 ######### MDP common definitions
 POMDPs.n_states(mdp::roadnet_with_pursuer) = length(POMDPs.states(mdp)) # gives acces to number of states
 POMDPs.n_actions(mdp::roadnet_with_pursuer) = length(action_set(mdp)) # gives access to number of actions
 POMDPs.discount(mdp::roadnet_with_pursuer) = mdp.discount # the discount factor
-POMDPs.isterminal(mdp::roadnet_with_pursuer, s::roadnet_pursuer_state) = s.exit || s.node==s.pnode # dictates when MDP solver will terminate
+POMDPs.isterminal(mdp::roadnet_with_pursuer, s::roadnet_pursuer_state) = s.node in mdp.exit_nodes || s.node==s.pnode # dictates when MDP solver will terminate
 POMDPs.initial_state(mdp::roadnet_with_pursuer) = roadnet_with_pursuer(1,10) #could be a distribution, but we'll fix it for now
 
 function POMDPs.states(mdp::roadnet_with_pursuer)
     # return all possible states
     s = Vector{roadnet_pursuer_state}(0)
-    for d=0:1, v=1:nv(mdp.road_net), p=1:nv(mdp.road_net)
-        push!(s,roadnet_pursuer_state(v,p,d))
+    for v=1:nv(mdp.road_net), p=1:nv(mdp.road_net)
+        push!(s,roadnet_pursuer_state(v,p))
     end
     return s
 end
 
 function POMDPs.state_index(mdp::roadnet_with_pursuer,state::roadnet_pursuer_state)
-    sd = Int(state.exit +1)
-    idx = sub2ind((nv(mdp.road_net),2),state.node,state.pnode,sd)
+    idx = sub2ind((nv(mdp.road_net),2),state.node,state.pnode)
     return idx
 end
 
@@ -70,11 +69,6 @@ function POMDPs.generate_s(mdp::roadnet_with_pursuer,state::roadnet_pursuer_stat
     a = action
     n = state.node
     p = state.pnode
-
-    if state.exit || n==p
-        #state is terminal (i.e. exit, or caught)
-        return state
-    end
 
     ## pursuer move
     ## pursuer doesn't have uncertainty in movements, there is no selected action, the pursuer state just updates according to a specified method
@@ -109,27 +103,38 @@ function POMDPs.generate_s(mdp::roadnet_with_pursuer,state::roadnet_pursuer_stat
 
     exit = is_exit(mdp,newUGV_node)
 
-    return roadnet_pursuer_state(newUGV_node,newPursuer_node,exit)
+    return roadnet_pursuer_state(newUGV_node,newPursuer_node)
 
 end
 
 function POMDPs.reward(mdp::roadnet_with_pursuer,state::roadnet_pursuer_state,action::Symbol,statep::roadnet_pursuer_state)
-    if state.exit
-        return 0. # already done, no reward left
+    #  println(mdp.road_net.gprops[:exit_nodes])
+    if state.node in mdp.road_net.gprops[:exit_nodes]
+        # reached exit
+        #  println("#####escaped######")
+        return mdp.reward_vals[state.node]
     end
-    r = 0.
-    n = length(mdp.reward_states)
     if statep.node == statep.pnode
         # we were aprehended
+        #  println("####aprehended#####")
         #  println(mdp.road_net.gprops[:reward_dict][:caught])
-        return r += mdp.road_net.gprops[:reward_dict][:caught]
+        return mdp.road_net.gprops[:reward_dict][:caught]
     end
 
+    r = 0.
+    n = length(mdp.reward_states)
     # otherwise look up the reward value
     for i = 1:n
         if samenode(statep,mdp.reward_states[i])
             # if statep is a rewards state add the reward
             r += mdp.reward_vals[i]
+            #  if r == 1000.
+                #  println("escaped")
+            #  elseif r == 2000.
+                #  println("caught")
+            #  else
+                #  println("moved")
+            #  end
         end
     end
     return r
@@ -198,11 +203,17 @@ function rewards(g::MetaGraph)
     # may need to add current believed state in here to account for the reward of hitting the intruder
     for i in vertices(g.graph)
         if g.vprops[i][:state_property] in keys(rwd) # check to see if the state has a reward assigned
-            push!(states, roadnet_pursuer_state(i,4,isequal(g.vprops[i][:state_property],:exit)))
+            push!(states, roadnet_pursuer_state(i,4))
             push!(vals, rwd[g.vprops[i][:state_property]])
         end
     end
     return states, vals
+end
+
+function exit_nodes(g::MetaGraph)
+    @assert :POMDPgraph in keys(g.gprops)
+
+    return g.gprops[:exit_nodes]
 end
 
 function action_set(g::roadnet_with_pursuer;map::Bool=false)

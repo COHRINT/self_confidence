@@ -60,6 +60,7 @@ function original_roadnet(;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,se
     set_prop!(mg,:POMDPgraph,true) # this indicates that we created this graph with POMDP structure (as defined by me)
     set_prop!(mg,:description, "original road network")
     set_prop!(mg,:reward_dict, Dict([(:exit,exit_rwd),(:caught,caught_rwd),(:sensor,sensor_rwd)]))
+    set_prop!(mg,:exit_nodes,[13])
 
     for i in vertices(mg)
         set_prop!(mg,i,:id,i)
