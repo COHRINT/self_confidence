@@ -1,7 +1,7 @@
 using MCTS
 using Plots, PlotRecipes
 using ProgressMeter
-using JLD2
+using JLD
 using MicroLogging
 using Base.Markdown
 include("roadnet_pursuer_generator_MDP.jl")
@@ -88,11 +88,13 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     ST = reshape(sim_time,length(its_axis),:)
 
     # Save off data
-    @save "data/$(num_repeats)_$(DateTime(now())).jld2" its_axis d_axis utilities max_steps U ST IA DA
+    #  @save "data/$(num_repeats)_$(DateTime(now())).jld2" its_axis d_axis utilities max_steps U ST IA DA
     # @save "data/$(num_repeats)_$(DateTime(now())).jld2" its_axis d_axis utilities mean(utilities,2)[:] max_steps U ST IA DA
-    # JLD2.save("data/$(num_repeats)_$(DateTime(now())).jld2",Dict("its_axis" => its_axis,
-             # "d_axis" => d_axis,"utilities" => utilities,"u_vals" => mean(utilities,2)[:],
-             # "max_steps" => max_steps,"U" => U, "ST" => ST,"IA" => IA,"DA" => DA))
+    #  JLD2.save("data/$(num_repeats)_$(DateTime(now())).jld2",Dict("its_axis" => its_axis,
+             #  "d_axis" => d_axis,"utilities" => utilities,"u_vals" => mean(utilities,2)[:],
+             #  "max_steps" => max_steps,"U" => U, "ST" => ST,"IA" => IA,"DA" => DA))
+    JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,"d_axis",d_axis,"utilities",utilities,
+         "u_vals",mean(utilities,2),"max_steps",max_steps,"U",U,"ST",ST,"IA",IA,"DA",DA)
 
     ####### Plotting #######
     ## Reward vs d
