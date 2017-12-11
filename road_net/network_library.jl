@@ -79,6 +79,7 @@ end
 function medium_roadnet(;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,sensor_rwd::Float64=-1.)::MetaGraph
     srand(2111) #fix the rng seed for reproducibility
     g_connected = false
+    g = Graph()
     while !g_connected
         g = erdos_renyi(45,0.05) #aiming for max degree of ~5
         g_connected = is_connected(g)

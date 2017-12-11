@@ -1,7 +1,7 @@
 using MCTS
 using Plots, PlotRecipes
 using ProgressMeter
-using JLD
+using JLD2
 using MicroLogging
 using Base.Markdown
 include("roadnet_pursuer_generator_MDP.jl")
@@ -70,6 +70,7 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
 
     @info md"# Simulations"
     tic()
+    pm = Progress(length(PT[:]),1)
     for (p,h) in zip(PT,HT)
         @info "Running Simulations" progress=idx/length(PT)
         utilities[idx] = reward_grab(mdp,p,h,starting_state,discounted=discounted_rwd)
@@ -78,7 +79,7 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         if false
           @debug print_hist(mdp,hist)
         end
-
+        next!(pm)
         idx += 1
     end
     @info "Completed $(length(PT)) Simulations in $(toq()) seconds"
@@ -87,9 +88,11 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     ST = reshape(sim_time,length(its_axis),:)
 
     # Save off data
-    JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,
-             "d_axis",d_axis,"utilities",utilities,"u_vals",mean(utilities,2)[:],
-            "max_steps",max_steps,"U",U, "ST",ST,"IA",IA,"DA",DA,"mdp",mdp,"PT",PT,"HT",HT)
+    @save "data/$(num_repeats)_$(DateTime(now())).jld2" its_axis d_axis utilities max_steps U ST IA DA
+    # @save "data/$(num_repeats)_$(DateTime(now())).jld2" its_axis d_axis utilities mean(utilities,2)[:] max_steps U ST IA DA
+    # JLD2.save("data/$(num_repeats)_$(DateTime(now())).jld2",Dict("its_axis" => its_axis,
+             # "d_axis" => d_axis,"utilities" => utilities,"u_vals" => mean(utilities,2)[:],
+             # "max_steps" => max_steps,"U" => U, "ST" => ST,"IA" => IA,"DA" => DA))
 
     ####### Plotting #######
     ## Reward vs d
@@ -207,13 +210,13 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
-    its_rng = [100]
+    its_rng = [1000]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
-    d_rng = collect(1:10)
+    d_rng = collect(1:3:30)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
-    steps = 7 # number of steps the simulation runs
-    repeats = 5 # how many times to repeat each simlation
+    steps = 150 # number of steps the simulation runs
+    repeats = 100 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
