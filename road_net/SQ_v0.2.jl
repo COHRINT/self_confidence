@@ -1,5 +1,5 @@
 using MCTS
-using Plots, PlotRecipes
+using PyPlot
 using ProgressMeter
 using JLD
 using MicroLogging
@@ -10,7 +10,8 @@ include("road_net_visualize.jl")
 include("utilities.jl")
 
 function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int64=25,
-                        its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],num_repeats::Int64=10,discounted_rwd::Bool=true,img_fname::String="test.png")
+                        its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],exp_vals::Array{Float64}=[5.],
+                        num_repeats::Int64=10,discounted_rwd::Bool=true,img_fname::String="test.png")
     rnet = mdp.road_net.gprops[:net_stats]
     net_diam = rnet.diam
 
@@ -30,11 +31,10 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     its_axis = Vector{Int64}(0)
     d_axis = Vector{Int64}(0)
 
-    exp_const = 5.
-
-    for its in its_vals
+    for i in 1:length(its_vals)
         for d in d_vals
-            s = MCTSSolver(n_iterations=its,depth=d,exploration_constant=exp_const,enable_tree_vis=true)
+            its = its_vals[i]
+            s = MCTSSolver(n_iterations=its,depth=d,exploration_constant=exp_vals[i],enable_tree_vis=true)
             push!(its_axis,its)
             push!(d_axis,d)
             push!(policy_tilde,solve(s,mdp))
@@ -110,50 +110,64 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     @debug "D2 $D2"
     @debug "$(D2[:,2]), $(D2[:,3])"
 
-    #  theme(:dark)
-    if true
-        l = @layout [a{.1h};grid(1,2)]
-        p = Plots.plot(layout=l,size=(1500,900)) #conflict with TikzGraphs if not explicitly Plots.plot()
-        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_const\nD= $d_vals\nBased on $num_repeats separate simulations"
-        #  plot!(grid=false,annotation=(0.5,0.5,ttl_str),ticks=([]),fgborder=:white,subplot=1)
-        plot!(annotation=(0.5,0.5,ttl_str),framestyle=:none,subplot=1)
+    if false
+        fig,ax_ary = PyPlot.subplots(2,1,sharex=true)
+        fig[:set_size_inches](8.0,8.0)
 
         (x_vals,x_ticks,x_lbls) = return_indices(DA[:])
-        boxplot!(x_vals,U[:],label="",fillalpha=0.8,subplot=2)
-        #  vline!([mdp.road_net.gprops[:net_stats].diam],label="network diameter",lw=4,subplot=2)
-        violin!(x_vals,U[:],side=:right,marker=(0.2,:blue,stroke(0)),label="",fillalpha=0.2,subplot=2)
-        plot!(xlabel="MCTS Depth",
-              ylabel="$dis_str",subplot=2)
-        xticks!(x_ticks,x_lbls,subplot=2)
-        @debug x_ticks x_lbls
 
-        ## Reward vs Iterations
-        #  (n_vals,n_ticks,n_lbls) = return_indices(IA[:])
-        boxplot!(x_vals,ST[:],label="",fillalpha=0.8,subplot=3)
-        violin!(x_vals,ST[:],side=:right,marker=(0.2,:blue,stroke(0)),label="",fillalpha=0.2,subplot=3)
-        plot!(xlabel="MCTS Depth",
-              ylabel="Time to termination",subplot=3)
-        xticks!(x_ticks,x_lbls,subplot=3)
-        #  @debug n_ticks n_lbls
 
+        @debug typeof(x_vals) size(x_vals)
+        @debug typeof(x_ticks) size(x_ticks) x_ticks
+        @debug typeof(U) size(U)
+        # points = # of points where the Kernel Density Estimator is estimated
+        # bw_method = bandwidth of the KDE
+        ax_ary[1][:violinplot](U',x_ticks,widths=0.5,points=100,showmedians=true)
+        ax_ary[1][:axvline](x=mdp.road_net.gprops[:net_stats].diam,color="red",lw=1)
+
+        ax_ary[2][:violinplot](ST',x_ticks,widths=0.5,points=100,showmedians=true)
+        ax_ary[2][:axvline](x=mdp.road_net.gprops[:net_stats].diam,color="red",lw=1,label="Net Diam.")
+
+        ax_ary[1][:set_ylabel]("$dis_str")
+        ax_ary[1][:xaxis][:set_ticklabels]([])
+        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_vals\nD= $d_vals\nBased on $num_repeats separate simulations"
+        ax_ary[1][:set_title](ttl_str)
+
+        ax_ary[2][:set_xticks](x_ticks)
+        ax_ary[2][:xaxis][:set_ticklabels](x_lbls)
+        ax_ary[2][:set_xlabel]("MCTS Depth")
+        ax_ary[2][:set_ylabel]("Time to termination")
+
+        ax_ary[2][:legend](loc=1,bbox_to_anchor=(1.0,1.15))
     else
-        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_const\nD= $d_vals\nBased on $num_repeats separate simulations"
+        fig,ax_ary = PyPlot.subplots(1,1,sharex=true)
+        fig[:set_size_inches](8.0,4.0)
 
-        p = Plots.plot(size=(900,600)) #conflict with TikzGraphs if not explicitly Plots.plot()
-        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_const\nBased on $num_repeats separate simulations"
-        boxplot!(D2[:,2],D2[:,3],label="",fillalpha=0.8)
-        vline!([mdp.road_net.gprops[:net_stats].diam],label="network diameter",lw=4)
-        violin!(D2[:,2],D2[:,3],side=:right,marker=(0.2,:blue,stroke(0)),label="",fillalpha=0.2)
+        (x_vals,x_ticks,x_lbls) = return_indices(DA[:])
 
-        plot!(title = ttl_str, xlabel="MCTS Depth",ylabel="$dis_str",xtickfont=font(10,"sans-serif"))
+        # points = # of points where the Kernel Density Estimator is estimated
+        # bw_method = bandwidth of the KDE
+        ax_ary[:violinplot](U',x_ticks,widths=0.5,points=100,showmedians=true)
+        ax_ary[:axvline](x=mdp.road_net.gprops[:net_stats].diam,color="red",lw=1,label="Net. Diam.")
+
+        ax_ary[:set_ylabel]("$dis_str")
+        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_vals\nD= $d_vals\nBased on $num_repeats separate simulations"
+        ax_ary[:set_title](ttl_str)
+        ax_ary[:set_xticks](x_ticks)
+        ax_ary[:xaxis][:set_ticklabels](x_lbls)
+        ax_ary[:set_xlabel]("MCTS Depth")
+        ax_ary[:legend](loc=1,bbox_to_anchor=(1.0,1.15))
+
+        fig[:tight_layout]()
+        #  ax_ary[:subplots_adjust](top=0.8)
     end
 
     if current_logger().default_min_level == MicroLogging.Debug
         @info "displaying plot(s)"
-        display(p)
+        show()
     else
         @info "saving plot(s) to file"
-        savefig(p,img_fname)
+        PyPlot.savefig(img_fname,dpi=300,transparent=true)
     end
 end
 
@@ -168,22 +182,28 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
         configure_logging(min_level=loglvl)
     end
 
-    g = original_roadnet(exit_rwd=2000.,caught_rwd=-2000.,sensor_rwd=-200.)
-    mdp = roadnet_with_pursuer(g,tp=0.8,d=0.9)
+    ext_rwd = 2000.
+    cgt_rwd = -2000.
+
+    g = original_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
+    mdp = roadnet_with_pursuer(g,tp=0.7,d=0.9)
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
     its_rng = [100]
+    #  e_vals = [5.]
+    e_vals = [(ext_rwd-cgt_rwd)*0.25]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     d_rng = collect(1:10)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
-    steps = 7 # number of steps the simulation runs
-    repeats = 20 # how many times to repeat each simlation
+    steps = 75 # number of steps the simulation runs
+    repeats = 150 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
-        run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,max_steps=steps,num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
+        run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,exp_vals=e_vals,max_steps=steps,
+                       num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
     end
 
     if logtofile
@@ -207,12 +227,17 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
         configure_logging(min_level=loglvl)
     end
 
+    ext_rwd = 10000.
+    cgt_rwd = -10000.
+
     g = medium_roadnet(exit_rwd=10000.,caught_rwd=-10000.,sensor_rwd=-100.)
     mdp = roadnet_with_pursuer(g,tp=0.8,d=0.9)
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
-    its_rng = [3000]
+    its_rng = [1000]
+    e_vals = [(ext_rwd-cgt_rwd)*0.25]
+    #  e_vals = [5.]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     d_rng = collect(1:3:30)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
@@ -222,7 +247,8 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     dis_rwd = false
 
     with_logger(logger) do
-        run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,max_steps=steps,num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
+        run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,exp_vals=e_vals,max_steps=steps,
+                       num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
     end
 
     if logtofile
