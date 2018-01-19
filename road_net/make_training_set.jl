@@ -3,7 +3,7 @@ using JLD
 include("network_library.jl")
 
 srand(1) # make this reproducible
-training_set_size = Int(100)
+training_set_size = Int(20e3)
 
 seed_list = collect(1:training_set_size)
 
@@ -24,7 +24,7 @@ n_rng = rand(collect(15:75),training_set_size)
 fname = "training_nets.jld"
 @save "$fname" training_set_size seed_list base_reward exit_rwd_rng exit_rwd_range sensor_rwd_range sensor_rwd_rng caught_rwd_rng caught_rwd_range degree_rng n_rng
 
-gs = Array(MetaGraphs.MetaGraph,training_set_size)
+gs = Array{MetaGraphs.MetaGraph}(training_set_size)
 
 for i=1:training_set_size
     try
