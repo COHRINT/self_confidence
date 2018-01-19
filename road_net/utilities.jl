@@ -22,7 +22,10 @@ function return_indices(ary::Vector)
         ticks[x[1]] = x[1]
         labels[x[1]] = "$(x[2])"
     end
-    return indices, ticks, labels
+
+    rng = (minimum(u),maximum(u))
+
+    return indices, ticks, labels, rng
 end
 
 

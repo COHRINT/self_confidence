@@ -114,8 +114,10 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         fig,ax_ary = PyPlot.subplots(2,1,sharex=true)
         fig[:set_size_inches](8.0,8.0)
 
-        (x_vals,x_ticks,x_lbls) = return_indices(DA[:])
+        (x_vals,x_ticks,x_lbls,x_rng) = return_indices(DA[:])
 
+        vline_frac = (mdp.road_net.gprops[:net_stats].diam - x_rng[1])/(x_rng[2]-x_rng[1])
+        vline_tick = x_ticks+vline_frac*(maximum(x_ticks)-minimum(x_ticks))
 
         @debug typeof(x_vals) size(x_vals)
         @debug typeof(x_ticks) size(x_ticks) x_ticks
@@ -123,10 +125,10 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         # points = # of points where the Kernel Density Estimator is estimated
         # bw_method = bandwidth of the KDE
         ax_ary[1][:violinplot](U',x_ticks,widths=0.5,points=100,showmedians=true)
-        ax_ary[1][:axvline](x=mdp.road_net.gprops[:net_stats].diam,color="red",lw=1)
+        ax_ary[1][:axvline](x=vline_tick,color="red",lw=1)
 
         ax_ary[2][:violinplot](ST',x_ticks,widths=0.5,points=100,showmedians=true)
-        ax_ary[2][:axvline](x=mdp.road_net.gprops[:net_stats].diam,color="red",lw=1,label="Net Diam.")
+        ax_ary[2][:axvline](x=vline_tick,color="red",lw=1,label="Net Diam.")
 
         ax_ary[1][:set_ylabel]("$dis_str")
         ax_ary[1][:xaxis][:set_ticklabels]([])
@@ -143,12 +145,17 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         fig,ax_ary = PyPlot.subplots(1,1,sharex=true)
         fig[:set_size_inches](8.0,4.0)
 
-        (x_vals,x_ticks,x_lbls) = return_indices(DA[:])
+        (x_vals,x_ticks,x_lbls,x_rng) = return_indices(DA[:])
+
+        vline_frac = (mdp.road_net.gprops[:net_stats].diam - x_rng[1])/(x_rng[2]-x_rng[1])
+        vline_tick = minimum(x_ticks)+vline_frac*(maximum(x_ticks)-minimum(x_ticks))
 
         # points = # of points where the Kernel Density Estimator is estimated
         # bw_method = bandwidth of the KDE
+        @info "network diameter = $(mdp.road_net.gprops[:net_stats].diam)"
+        @info "vline tick_location= $vline_tick"
         ax_ary[:violinplot](U',x_ticks,widths=0.5,points=100,showmedians=true)
-        ax_ary[:axvline](x=mdp.road_net.gprops[:net_stats].diam,color="red",lw=1,label="Net. Diam.")
+        ax_ary[:axvline](x=vline_tick,color="red",lw=1,label="Net. Diam.")
 
         ax_ary[:set_ylabel]("$dis_str")
         ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_vals\nD= $d_vals\nBased on $num_repeats separate simulations"
@@ -227,23 +234,23 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
         configure_logging(min_level=loglvl)
     end
 
-    ext_rwd = 10000.
-    cgt_rwd = -10000.
+    ext_rwd = 2000.
+    cgt_rwd = -2000.
 
-    g = medium_roadnet(exit_rwd=10000.,caught_rwd=-10000.,sensor_rwd=-100.)
-    mdp = roadnet_with_pursuer(g,tp=0.8,d=0.9)
+    g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
+    mdp = roadnet_with_pursuer(g,tp=0.5,d=0.9)
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
-    its_rng = [1000]
-    e_vals = [(ext_rwd-cgt_rwd)*0.25]
+    its_rng = [2000]
+    e_vals = [(ext_rwd-cgt_rwd)*0.50]
     #  e_vals = [5.]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     d_rng = collect(1:3:30)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 150 # number of steps the simulation runs
-    repeats = 50 # how many times to repeat each simlation
+    repeats = 100 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do

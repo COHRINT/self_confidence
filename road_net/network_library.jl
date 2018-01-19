@@ -106,9 +106,64 @@ function medium_roadnet(;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,sens
     return mg
 end
 ###### add other road networks here.....
+function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,
+                      sensor_rwd::Float64=-1.,net_seed::Int64=0,
+                      target_mean_degree::Float64=5.0,is_directed::Bool=false)::MetaGraph
+    # n: total nodes
+    # exit_rwd: how much reward at exit
+    # caught_rwd: how much reward when caught
+    # sensor_rwd: baseline reward, incentive to keep moving instead of staying put
+    # net_seed: random seed to be able to regenerate a network
+    # target_mean_degree: desired average degree to constrain the action space
+    # is_directed: whether graph is directed or not
+
+    g = Graph()
+    p = 0.5
+    p_itr = 1
+    tot_itr = 1
+    while (!is_connected(g) || round(mean(degree(g)))!= target_mean_degree) && tot_itr < 2e5
+        g = erdos_renyi(n,p,is_directed=is_directed,seed=net_seed)
+        tot_itr += 1
+        p_itr += 1
+        if p_itr > 250
+            # we aren't getting desired degree, change p accordingly
+            if mean(degree(g)) > target_mean_degree
+                p = p - 0.01
+            else
+                p = p + 0.01
+            end
+            round(p,3)
+            #  println("Mean degree is $(mean(degree(g))), Changing p to: $p")
+        end
+
+    end
+    if tot_itr >= 2e5
+        error("couldn't make desired network")
+    end
+
+    # make graph with metadata
+    mg = MetaGraph(g)
+    set_prop!(mg,:POMDPgraph,true) # this indicates that we created this graph with POMDP structure (as defined by me)
+    set_prop!(mg,:description, "automatically generated random network with n=$n, and p=$p, and targeted average degree=$target_mean_degree")
+    set_prop!(mg,:reward_dict, Dict([(:exit,exit_rwd),(:caught,caught_rwd),(:sensor,sensor_rwd)]))
+    set_prop!(mg,:exit_nodes,[32])
+
+    for i in vertices(mg)
+        set_prop!(mg,i,:id,i)
+
+        if i in mg.gprops[:exit_nodes]
+            state_prop = :exit
+        else
+            state_prop = :sensor
+        end
+        set_prop!(mg,i,:state_property,state_prop)
+    end
+    set_net_props!(mg)
+    return mg
+end
 
 ##### display stuff
-function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),pursuer_locs::Array{Int64}=empty!([1]),action_locs::Array{Int64}=empty!([1]),fname::String="test",ftype::Symbol=:svg)
+function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),pursuer_locs::Array{Int64}=empty!([1]),action_locs::Array{Int64}=empty!([1]),fname::String="test",ftype::Symbol=:svg,scale::Float64=1.0)
     # find exit nodes
     node_styles = Dict()
     exit_format = "fill=green!70"
@@ -133,7 +188,7 @@ function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),purs
     end
 
     t = TikzGraphs.plot(g.graph,Layouts.Spring(randomSeed=52), node_style=other_node_style,node_styles=node_styles)
-    t.options = "scale=2.0" # add "scale=2.0" to scale image, but doesn't look too good
+    t.options = "scale=$scale" # add "scale=2.0" to scale image, but doesn't look too good
     if ftype == :svg
         TikzPictures.save(SVG(fname),t)
     else
