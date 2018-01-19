@@ -121,11 +121,12 @@ function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     p = 0.5
     p_itr = 1
     tot_itr = 1
-    while (!is_connected(g) || round(mean(degree(g)))!= target_mean_degree) && tot_itr < 2e5
+    max_its = 1e4
+    while (!is_connected(g) || round(mean(degree(g)))!= target_mean_degree) && tot_itr < max_its
         g = erdos_renyi(n,p,is_directed=is_directed,seed=net_seed)
         tot_itr += 1
         p_itr += 1
-        if p_itr > 250
+        if p_itr > 100
             # we aren't getting desired degree, change p accordingly
             if mean(degree(g)) > target_mean_degree
                 p = p - 0.01
@@ -137,7 +138,7 @@ function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
         end
 
     end
-    if tot_itr >= 2e5
+    if tot_itr >= max_its
         error("couldn't make desired network")
     end
 
