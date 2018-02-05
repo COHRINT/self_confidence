@@ -65,7 +65,7 @@ function original_roadnet(;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,se
     for i in vertices(mg)
         set_prop!(mg,i,:id,i)
 
-        if i == 13
+        if i in mg.gprops[:exit_nodes]
             state_prop = :exit
         else
             state_prop = :sensor
@@ -108,7 +108,8 @@ end
 ###### add other road networks here.....
 function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,
                       sensor_rwd::Float64=-1.,net_seed::Int64=0,
-                      target_mean_degree::Float64=5.0,is_directed::Bool=false)::MetaGraph
+                      target_mean_degree::Float64=5.0,is_directed::Bool=false,
+                      exit_nodes::Array{Int64}=empty!([1]))::MetaGraph
     # n: total nodes
     # exit_rwd: how much reward at exit
     # caught_rwd: how much reward when caught
@@ -147,7 +148,7 @@ function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     set_prop!(mg,:POMDPgraph,true) # this indicates that we created this graph with POMDP structure (as defined by me)
     set_prop!(mg,:description, "automatically generated random network with n=$n, and p=$p, and targeted average degree=$target_mean_degree")
     set_prop!(mg,:reward_dict, Dict([(:exit,exit_rwd),(:caught,caught_rwd),(:sensor,sensor_rwd)]))
-    set_prop!(mg,:exit_nodes,[32])
+    set_prop!(mg,:exit_nodes,exit_nodes)
 
     for i in vertices(mg)
         set_prop!(mg,i,:id,i)

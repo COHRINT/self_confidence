@@ -75,7 +75,6 @@ function score(x::Int64,crit::Symbol)
     end
 end
 
-
 function lhs_rank(x::Vector{Float64})::Vector{Float64}
     z = sort(x)
     r = similar(x)

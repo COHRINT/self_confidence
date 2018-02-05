@@ -1,36 +1,13 @@
 using POMDPs, BasicPOMCP, POMDPToolbox
 using MetaGraphs
 using Distributions, StatsBase
+using Roadnet_MDP
+reload("Roadnet_MDP") #using reload forces update of module
 include("network_library.jl")
 
-######### state definition
-struct roadnet_pursuer_state
-    node::Int64 # current UGV node
-    pnode::Int64 # current puruser node
-end
-
+######### MDP common definitions
 samenode(s1::roadnet_pursuer_state,s2::roadnet_pursuer_state) = s1.node == s2.node && s1.pnode == s1.pnode
 
-
-######### MDP definition
-type roadnet_with_pursuer <: MDP{roadnet_pursuer_state,Symbol}
-    tprob::Float64 #probability of transitioning to desired state
-    discount::Float64 #discount factor
-    reward_vals::Vector{Float64}
-    reward_states::Vector{roadnet_pursuer_state}
-    exit_nodes::Vector{Int64} #list of states that are exits
-    road_net::MetaGraph
-end
-
-function roadnet_with_pursuer(rn::MetaGraph;tp::Float64=1.0,
-                               d::Float64=0.9,
-                               rv::Vector{Float64}=rewards(rn)[2],
-                               rs::Vector{roadnet_pursuer_state}=rewards(rn)[1],
-                               es::Vector{Int64}=exit_nodes(rn))
-    return roadnet_with_pursuer(tp,d,rv,rs,es,rn)
-end
-
-######### MDP common definitions
 POMDPs.n_states(mdp::roadnet_with_pursuer) = length(POMDPs.states(mdp)) # gives acces to number of states
 POMDPs.n_actions(mdp::roadnet_with_pursuer) = length(action_set(mdp)) # gives access to number of actions
 POMDPs.discount(mdp::roadnet_with_pursuer) = mdp.discount # the discount factor
@@ -190,30 +167,6 @@ function get_target(neighbors::Vector{Int64},a::Symbol)::Int64
     else
         return -1 # this node doesn't have that many neighbors
     end
-end
-
-function rewards(g::MetaGraph)
-    # make sure this is a POMDP MetaGraph -- i.e. one we created with the special metadata
-    @assert :POMDPgraph in keys(g.gprops)
-
-    num_vert = nv(g)
-    states = Array{roadnet_pursuer_state}(0)
-    vals = Array{Float64}(0)
-    rwd = g.gprops[:reward_dict]
-    # may need to add current believed state in here to account for the reward of hitting the intruder
-    for i in vertices(g.graph)
-        if g.vprops[i][:state_property] in keys(rwd) # check to see if the state has a reward assigned
-            push!(states, roadnet_pursuer_state(i,4))
-            push!(vals, rwd[g.vprops[i][:state_property]])
-        end
-    end
-    return states, vals
-end
-
-function exit_nodes(g::MetaGraph)
-    @assert :POMDPgraph in keys(g.gprops)
-
-    return g.gprops[:exit_nodes]
 end
 
 function action_set(g::roadnet_with_pursuer;map::Bool=false)
