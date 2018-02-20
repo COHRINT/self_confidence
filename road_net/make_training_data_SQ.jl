@@ -122,7 +122,7 @@ function netprops2array(g::roadnet_with_pursuer)
 
 end
 
-function main(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug)
+function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug)
 
     # initialize the DataFrame
     training_data = DataFrame(graphID=Int64[],discount=Float64[],tprob=Float64[],num_exit_nodes=Float64[],exit_rwd=Float64[],
@@ -130,7 +130,7 @@ function main(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::St
                               diam=Float64[],max_degree=Float64[],N=Float64[],E=Float64[],its=Float64[],
                               e_mcts=Float64[],d_mcts=Float64[],steps=Float64[],repeats=Float64[],
                               exit_distance=Float64[],pursuer_distance=Float64[],expected_rwd=Float64[],
-                              lhm_upm=Float64[],mean=Float64[],median=Float64[],moment_2=Float64[],moment_3=Float64[],
+                              upm_lpm=Float64[],mean=Float64[],median=Float64[],moment_2=Float64[],moment_3=Float64[],
                               moment_4=Float64[],moment_5=Float64[],moment_6=Float64[],moment_7=Float64[],
                               moment_8=Float64[],moment_9=Float64[],moment_10=Float64[])
     #### Logging
@@ -171,8 +171,8 @@ function main(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::St
             d_mcts = [problem[:mcts_depth]]
             e_mcts = [problem[:mcts_e]]
 
-            steps = 3*mdp.road_net.gprops[:net_stats].diam
-            repeats = 200 # how many times to repeat each simlation
+            steps = 5*mdp.road_net.gprops[:net_stats].diam
+            repeats = 250 # how many times to repeat each simlation
             dis_rwd = false
 
             start = problem[:evader_start]
@@ -225,4 +225,11 @@ function main(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::St
     end
 end
 
-main(data_fname=
+#  make_training_data(data_fname="logs/transition_vary_4")
+#  make_training_data(data_fname="logs/transition_vary_test_4")
+#  make_training_data(data_fname="logs/transition_vary_test_bad_solver")
+#  make_training_data(data_fname="logs/transition_vary_test_ok_solver")
+#  make_training_data(data_fname="logs/discount_vary")
+#  make_training_data(data_fname="logs/discount_vary_test")
+#  make_training_data(data_fname="logs/net_vary")
+#  make_training_data(data_fname="logs/net_vary_test")

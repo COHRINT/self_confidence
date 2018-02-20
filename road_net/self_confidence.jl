@@ -15,8 +15,11 @@ function UPM_LPM(rwd::Vector{Float64};threshold::Float64=0.)::Float64
     upm_data = rwd.>=threshold
     lpm_data = rwd.<threshold
 
-    upm = sum(rwd[upm_data] .* rwd_prob[upm_data])
+    #  println("thresh: $threshold")
+    upm = sum(abs.(rwd[upm_data]) .* rwd_prob[upm_data])
     lpm = sum(abs.(rwd[lpm_data]) .* rwd_prob[lpm_data])
+    #  println(upm)
+    #  println(lpm)
 
     upm_lpm = upm/lpm
 end
@@ -27,8 +30,16 @@ function X3(rwd::Vector{Float64};train::Bool=false)::Array{Float64}
     if train
         # return data for the training set
         thresh = median(rwd)
-        upm_lpm = UPM_LPM(rwd,threshold=thresh)
-        return [thresh upm_lpm]
+        #  upm_lpm = UPM_LPM(rwd,threshold=thresh)
+        #  if upm_lpm == -Inf
+            #  # make arbitrarily "big"
+            #  upm_lpm = -1e6
+        #  elseif upm_lpm == Inf
+            #  upm_lpm = 1e6
+        #  end
+        OA = X4(rwd,threshold=thresh)
+        #  println("########## OA: $OA ##########")
+        return [thresh OA]
     else
         # return predictions
         error("X3 test not implemented yet")

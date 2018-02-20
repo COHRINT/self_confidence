@@ -73,7 +73,7 @@ function make_nets(training_set_size::Int64;exit_rwd_bounds::Array{Float64}=[200
                                  sensor_rwd=sensor_rwd_ary[i],net_seed=seed_list[i],
                                  exit_nodes=[8],target_mean_degree=degree_ary[i])
             elseif net_type == :original
-                g = original_roadnet(exit_rwd=exit_rwd_ary[i],caught_rwd=caught_rwd_ary[i],sensor_rwd=caught_rwd_ary[i])
+                g = original_roadnet(exit_rwd=exit_rwd_ary[i],caught_rwd=caught_rwd_ary[i],sensor_rwd=sensor_rwd_ary[i])
             else
                 println("no other net_types implemented at this time")
             end
@@ -103,22 +103,60 @@ function make_nets(training_set_size::Int64;exit_rwd_bounds::Array{Float64}=[200
     end
 end
 
-# run on original road net, varying only transition probability
-println("making transition networks")
-make_nets(25,fname="logs/transition_vary.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-200.],caught_rwd_bounds=[-2000.],
-          degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[500.],
-          trans_prob_bounds=[0.3,1.0],discount_fact_bounds=[0.95],net_type=:original)
+## run on original road net, varying only transition probability
+#  println("making transition networks")
+#  make_nets(2500,fname="logs/transition_vary_4.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[8],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original)
+#
+#  println("making test multi-graph networks")
+#  make_nets(250,fname="logs/transition_vary_test_4.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[8],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=12345)
 
-# run on original road net, varying only discount factor
-println("making discount networks")
-make_nets(25,fname="logs/discount_vary.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-200.],caught_rwd_bounds=[-2000.],
-          degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[500.],
-          trans_prob_bounds=[0.9],discount_fact_bounds=[0.50,0.95],net_type=:original)
+#  println("making test bad solver networks")
+#  make_nets(250,fname="logs/transition_vary_test_bad_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[1],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=12345)
+#  println("making test ok solver networks")
+#  make_nets(250,fname="logs/transition_vary_test_ok_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[3],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=12345)
 
-# run with fixed parameters on changing network
-println("making multi-graph networks")
-make_nets(25,fname="logs/net_vary.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-200.],caught_rwd_bounds=[-2000.],
-          degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[500.],
-          trans_prob_bounds=[0.9],discount_fact_bounds=[0.95],net_type=:random)
+#########################################################
+###########Discount Networks
+#########################################################
+##  run on original road net, varying only discount factor
+#  println("making discount networks")
+#  make_nets(500,fname="logs/discount_vary.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.9],discount_fact_bounds=[0.00,1.0],net_type=:original)
+#
+#  println("making test discount networks")
+#  make_nets(50,fname="logs/discount_vary_test.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.9],discount_fact_bounds=[0.00,1.0],net_type=:original)
 
-
+#########################################################
+###########Random Networks
+#########################################################
+## run with fixed parameters on changing network
+#  println("making random networks")
+#  make_nets(500,fname="logs/net_vary.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
+#
+#  println("making test random networks")
+#  make_nets(50,fname="logs/net_vary_test.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
+#
+#  println("making test random networks bad solver")
+#  make_nets(50,fname="logs/net_vary_test_bad_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[1],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
+#
+#  println("making test random networks OK solver")
+#  make_nets(50,fname="logs/net_vary_test_bad_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
+          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[3],mcts_e_bounds=[1000.],
+          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
