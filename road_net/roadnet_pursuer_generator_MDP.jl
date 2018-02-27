@@ -2,7 +2,6 @@ using POMDPs, BasicPOMCP, POMDPToolbox
 using MetaGraphs
 using Distributions, StatsBase
 using Roadnet_MDP
-reload("Roadnet_MDP") #using reload forces update of module
 include("network_library.jl")
 
 ######### MDP common definitions

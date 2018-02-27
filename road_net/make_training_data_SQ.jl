@@ -1,14 +1,20 @@
 using MCTS
-using PyPlot
+include("roadnet_pursuer_generator_MDP.jl")
 using ProgressMeter
+using PyPlot
 using JLD
 using MicroLogging
 using Base.Markdown
 using DataFrames, CSV
-include("roadnet_pursuer_generator_MDP.jl")
-include("self_confidence.jl")
 include("road_net_visualize.jl")
 include("utilities.jl")
+include("self_confidence.jl")
+
+rwd_global = []
+
+####### NEED TO RE-VISIT HOW THESE FILES WORK, THERE ARE A LOT OF MULTIPLE IMPORTS
+####### I PROBABLY NEED TO PACKAGE THIS STUFF TO AVOID ISSUES WHEN I TRY TO IMPORT @EVERYWHERE
+####### THIS IS CAUSING ISSUES WHEN TRYING TO RUN IN PARALLEL, I GOT A "method too new to be called from this world context" error
 
 function get_reward_distribution(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int64=25,
                         its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],exp_vals::Array{Float64}=[5.],
@@ -70,17 +76,33 @@ function get_reward_distribution(g::MetaGraph, mdp::roadnet_with_pursuer; max_st
 
     @info md"# Simulations"
     tic()
-    pm = Progress(length(PT[:]),1)
-    for (p,h) in zip(PT,HT)
-        @info "Running Simulations" progress=idx/length(PT)
-        rewards[idx] = reward_grab(mdp,p,h,initial_state,discounted=discounted_rwd)
-        hist = reward_grab(mdp,p,h,initial_state,discounted=discounted_rwd,return_hist=true)
-        sim_time[idx] = length(hist)
-        if false
-          @debug print_hist(mdp,hist)
+    parallel_sim = true
+    if parallel_sim
+        q = []
+        for pol in PT
+            value = Sim(mdp,pol,initial_state,max_steps=max_steps)
+            push!(q,value)
         end
-        next!(pm)
-        idx += 1
+        sim_results = run_parallel(q) do sim,hist
+            display(discounted_reward(hist))
+            return [:steps=>n_steps(hist), :reward=>discounted_reward(hist)]
+        end
+
+        rewards = [float(x) for x in sim_results[:reward]] #need to convert to float, because sim_results[:reward] is a union of floats and missing values, even though there aren't any missing values...
+
+    else
+        pm = Progress(length(PT[:]),1)
+        for (p,h) in zip(PT,HT)
+            @info "Running Simulations" progress=idx/length(PT)
+            rewards[idx] = reward_grab(mdp,p,h,initial_state,discounted=discounted_rwd)
+            hist = reward_grab(mdp,p,h,initial_state,discounted=discounted_rwd,return_hist=true)
+            sim_time[idx] = length(hist)
+            if false
+              @debug print_hist(mdp,hist)
+            end
+            next!(pm)
+            idx += 1
+        end
     end
     @info "Completed $(length(PT)) Simulations in $(toq()) seconds"
 

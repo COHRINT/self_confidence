@@ -2,7 +2,8 @@ module Roadnet_MDP
 
 using POMDPs, MetaGraphs, LightGraphs
 
-export roadnet_with_pursuer, roadnet_pursuer_state, samenode, rewards, exit_nodes
+#  export roadnet_with_pursuer, roadnet_pursuer_state, samenode, rewards, exit_nodes
+export roadnet_with_pursuer, roadnet_pursuer_state, rewards, exit_nodes
 
 ######### state definition
 struct roadnet_pursuer_state
@@ -34,7 +35,7 @@ function rewards(g::MetaGraph)
 end
 
 ######### MDP definition
-type roadnet_with_pursuer <: MDP{roadnet_pursuer_state,Symbol}
+struct roadnet_with_pursuer <: MDP{roadnet_pursuer_state,Symbol}
     tprob::Float64 #probability of transitioning to desired state
     discount::Float64 #discount factor
     reward_vals::Vector{Float64}

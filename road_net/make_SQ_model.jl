@@ -1,154 +1,96 @@
 using JuliaDB
 using MXNet
 using Plots
+using ProgressMeter
 
-#  train_table = loadtable("logs/transition_vary.csv",escapechar='"')
-#  train_table = loadtable("logs/transition_vary_2.csv",escapechar='"')
-train_table = loadtable("logs/transition_vary_4.csv",escapechar='"')
-#  train_table = loadtable("logs/net_vary.csv",escapechar='"')
-bad_table = loadtable("logs/transition_vary_test_bad_solver.csv",escapechar='"')
-ok_table = loadtable("logs/transition_vary_test_ok_solver.csv",escapechar='"')
-
-#  test_table = loadtable("logs/transition_vary_test.csv",escapechar='"')
-#  test_table = loadtable("logs/transition_vary.csv",escapechar='"')
-#  test_table = loadtable("logs/transition_vary_test_2.csv",escapechar='"')
-test_table = loadtable("logs/transition_vary_test_4.csv",escapechar='"')
-#  test_table = loadtable("logs/net_vary_test.csv",escapechar='"')
-
-fig_name = "net_plot.png"
-
-# use "nothing" to ignore certain variables...for now
-sch = ML.schema(train_table, hints=Dict(
-                :graphID=>nothing,
-                :discount=>nothing,
-                #  :discount=>ML.Continuous,
-                :tprob=>ML.Continuous,
-                #  :tprob=>nothing,
-                :num_exit_nodes=>nothing,
-                :exit_rwd=>nothing,
-                :caught_rwd=>nothing,
-                :sensor_rwd=>nothing,
-                #  :avg_degree=>ML.Continuous,
-                :avg_degree=>nothing,
-                :deg_variance=>nothing,
-                #  :deg_variance=>ML.Continuous,
-                :diam=>nothing,
-                :max_degree=>nothing,
-                :N=>nothing,
-                :E=>nothing,
-                :its=>nothing,
-                :e_mcts=>nothing,
-                :d_mcts=>nothing,
-                :steps=>nothing,
-                :repeats=>nothing,
-                :exit_distance=>nothing,
-                :pursuer_distance=>nothing,
-                #  :expected_rwd=>nothing,
-                :expected_rwd=>ML.Continuous,
-                #  :upm_lpm=>ML.Continuous,
-                :upm_lpm=>nothing,
-                :mean=>nothing,
-                :median=>nothing,
-                :moment_2=>nothing,
-                :moment_3=>nothing,
-                :moment_4=>nothing,
-                :moment_5=>nothing,
-                :moment_6=>nothing,
-                :moment_7=>nothing,
-                :moment_8=>nothing,
-                :moment_9=>nothing,
-                :moment_10=>nothing,
-                ))
-
-function my_splitschema(xs::ML.Schema,ks::Vector{Symbol})
-    return filter((k,v) -> k ∉ ks, xs), filter((k,v) -> k ∈ ks, xs)
+mutable struct SQ_model
+    input_sch::ML.Schema
+    output_sch::ML.Schema
+    network #neural network
 end
 
-tprob = [z.tprob for z in train_table]
-exp_rwd = [z.expected_rwd for z in train_table]
-upm_lpm = [z.upm_lpm for z in train_table]
-
-#  output_list = [:expected_rwd, :upm_lpm]
-#  output_list = [:upm_lpm]
-#  input_list = [:deg_variance]
-input_list = [:tprob]
-output_list = [:expected_rwd]
-input_sch, output_sch = my_splitschema(sch,output_list)
-
-training_in = ML.featuremat(input_sch, train_table)
-training_out = ML.featuremat(output_sch, train_table)
-#  training_in = NDArray(tprob')
-#  training_out = NDArray([exp_rwd upm_lpm]')
-
-tst_exp_rwd = [z.expected_rwd for z in test_table]
-tst_upm_lpm = [z.upm_lpm for z in test_table]
-tst_tprob = [z.tprob for z in test_table]
-
-bad_exp_rwd = [z.expected_rwd for z in bad_table]
-bad_tprob = [z.tprob for z in bad_table]
-ok_exp_rwd = [z.expected_rwd for z in ok_table]
-ok_tprob = [z.tprob for z in ok_table]
-
-#use input and output_sch already obtained to transform test data in the same way training data was transformed
-test_input = ML.featuremat(input_sch, test_table)
-test_output = ML.featuremat(output_sch, test_table)
-#  test_input = NDArray(tst_tprob')
-#  test_output = NDArray([tst_exp_rwd tst_upm_lpm]')
-
-
-function data_source(batchsize::Int64)
+function data_source(batchsize::Int64,train_in,train_out,valid_in,valid_out)
   train = mx.ArrayDataProvider(
-    :data => training_in,
-    :label => training_out,
+    :data => train_in,
+    :label => train_out,
     batch_size = batchsize,
     shuffle = true,
     )
   valid = mx.ArrayDataProvider(
-    :data => test_input,
-    :label => test_output,
+    :data => valid_in,
+    :label => valid_out,
     batch_size = batchsize,
     shuffle = true,
     )
   train, valid
 end
 
-data = mx.Variable(:data)
-label = mx.Variable(:label)
-net = @mx.chain     mx.Variable(:data) =>
-                    mx.FullyConnected(num_hidden=6) =>
-                    mx.Activation(act_type=:relu) =>
-                    mx.FullyConnected(num_hidden=6) =>
-                    mx.Activation(act_type=:relu) =>
-                    mx.FullyConnected(num_hidden=6) =>
-                    mx.Activation(act_type=:relu) =>
-                    mx.FullyConnected(num_hidden=6) =>
-                    mx.Activation(act_type=:relu) =>
-                    mx.FullyConnected(num_hidden= length(output_list)) =>
-                    mx.LinearRegressionOutput(mx.Variable(:label))
+function make_nn_SQ_model(train_fname::String,valid_fname::String; input_dict::Dict=Dict(),
+                          output_dict::Dict=Dict(),nn_epoc::Int64=15,nn_batch_size::Int64=25)
 
-# final model definition, don't change, except if using gpu
-model = mx.FeedForward(net, context=mx.cpu())
+    training_in, training_out, training_table, input_sch, output_sch = return_data(train_fname,inputs=input_dict,outputs=output_dict)
+    valid_in, valid_out, valid_table, _notused, _notused = return_data(valid_fname,inputs=input_dict,outputs=output_dict)
 
-# set up the optimizer: select one, explore parameters, if desired
-#  optimizer = mx.SGD(η=0.01, μ=0.9, λ=0.00001)
-optimizer = mx.ADAM()
+    output_list = collect(keys(output_dict))
+    input_list = collect(keys(input_dict))
+    info("*****outputs: $output_list\n")
+    info("*****inputs: $input_list")
 
-# train, reporting loss for training and evaluation sets
-# initial training with small batch size, to get to a good neighborhood
-trainprovider, evalprovider = data_source(#= batchsize =# 25)
-mx.fit(model, optimizer, trainprovider,
-       initializer = mx.NormalInitializer(0.0, 0.1),
-       eval_metric = mx.MSE(),
-       eval_data = evalprovider,
-       n_epoch = 1.500e3,
-       callbacks = [mx.speedometer()])
+    # create a DNN
+    data = mx.Variable(:data)
+    label = mx.Variable(:label)
+    net = @mx.chain     mx.Variable(:data) =>
+                        mx.FullyConnected(num_hidden=10) =>
+                        mx.Activation(act_type=:relu) =>
+                        mx.FullyConnected(num_hidden=10) =>
+                        mx.Activation(act_type=:relu) =>
+                        mx.FullyConnected(num_hidden= length(output_list)) =>
+                        mx.LinearRegressionOutput(mx.Variable(:label))
 
-# obtain predictions
-plotprovider = mx.ArrayDataProvider(:data => test_input, :label => test_output, shuffle=false)
-fit = mx.predict(model, plotprovider)
+    # final network definition, don't change, except if using gpu
+    network = mx.FeedForward(net, context=mx.cpu())
+
+    # set up the optimizer: select one, explore parameters, if desired
+    #  optimizer = mx.SGD(η=0.01, μ=0.9, λ=0.00001)
+    optimizer = mx.ADAM()
+
+    # get data providers
+    trainprovider, evalprovider = data_source(#= batchsize =# nn_batch_size,training_in,training_out,
+                                              valid_in,valid_out)
+
+
+    # train, reporting loss for training and evaluation sets
+    mx.fit(network, optimizer, trainprovider,
+           initializer = mx.NormalInitializer(0.0, 0.1),
+           eval_metric = mx.MSE(),
+           eval_data = evalprovider,
+           n_epoch = nn_epoc,
+           callbacks = [mx.speedometer()])
+
+    # put into a SQ_model for return
+    SQ = SQ_model(input_sch,output_sch,network)
+    return SQ
+end
+
+function SQ_predict(SQ::SQ_model,inputs::Array,outputs::Array;use_eng_units::Bool=false)
+    println("inputs:")
+    display(inputs)
+    println("outputs:")
+    display(outputs)
+    plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs, shuffle=false)
+    fit = mx.predict(SQ.network, plotprovider)
+    println("Predicted Output:")
+    display(fit)
+    if use_eng_units
+        return restore_eng_units(inputs,SQ.input_sch), restore_eng_units(fit,SQ.output_sch)
+    else
+        return inputs, fit
+    end
+end
 
 # convert data back to original units
 function restore_eng_units(ary::Array,sch::ML.Schema)
+    info("Restoring Engineering Units")
     arrays = Dict()
     for entry in sch
         i = 1
@@ -162,55 +104,81 @@ function restore_eng_units(ary::Array,sch::ML.Schema)
         end
     end
     return arrays
-    return [x.second for x in arrays]
+    #  return [x.second for x in arrays]
+end
+function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
+                     schema::Array=[])
+
+    function my_splitschema(xs::ML.Schema,ks::Vector{Symbol})
+        return filter((k,v) -> k ∉ ks, xs), filter((k,v) -> k ∈ ks, xs)
+    end
+
+    table = loadtable(fname,escapechar='"')
+
+    if isempty(schema)
+        schema_dict = Dict()
+        println("##### getting data #####")
+        #  p = Progress(length(colnames(table)),dt=0.1,desc="Processing",output=STDOUT)
+        for itm_name in colnames(table)
+            if itm_name ∈ keys(inputs)
+                #  ProgressMeter.next!(p,showvalues=[itm_name])
+                schema_dict[itm_name] = inputs[itm_name]
+            elseif itm_name ∈ keys(outputs)
+                #  ProgressMeter.next!(p,showvalues=[itm_name])
+                schema_dict[itm_name] = outputs[itm_name]
+            else
+                #  ProgressMeter.next!(p,showvalues=[itm_name])
+                # ignore variables that aren't inputs or outputs
+                schema_dict[itm_name] = nothing
+            end
+        end
+
+        output_list = collect(keys(outputs))
+        input_list = collect(keys(inputs))
+
+        sch = ML.schema(table, hints=schema_dict)
+        input_sch, output_sch = my_splitschema(sch,output_list)
+    else
+        input_sch = schema[1]
+        output_sch = schema[2]
+    end
+
+    in_data = ML.featuremat(input_sch, table)
+    out_data = ML.featuremat(output_sch, table)
+
+    if any(isnan.(in_data)) || any(isnan.(out_data))
+        error("NaN in data!!!")
+    end
+
+    return in_data, out_data, table, input_sch, output_sch
 end
 
-fit_eng = restore_eng_units(fit,output_sch)
+# problem setup
+#  train_fname = "logs/transition_vary_4.csv"
+#  test_fname = "logs/transition_vary_test_4.csv"
+train_fname = "logs/transition_e_vary_reference_solver_training.csv"
+test_fname = "logs/transition_e_vary_ok_solver.csv"
+inputs = Dict(:tprob=>ML.Continuous)
+#  inputs = Dict(:tprob=>ML.Continuous,:e_mcts=>ML.Continuous)
+outputs = Dict(:expected_rwd=>ML.Continuous)
 
-#  println(fit_eng)
-tst_out_eng = restore_eng_units(test_output,output_sch)
-tst_in_eng = restore_eng_units(test_input,input_sch)
-input_eng = restore_eng_units(test_input,input_sch)
-#  input_eng = input_eng[:tprob]
-#  input_eng = input_eng[:deg_variance]
+# make model
+SQmodel = make_nn_SQ_model(train_fname,test_fname,input_dict=inputs,output_dict=outputs,nn_epoc=200,nn_batch_size=50)
 
-println("correlation between fitted values and true regression line: ", cor(vec(fit), vec(test_output)))
-text_labels = ["reward" "upm_lpm"]
-if length(output_list) == 1
-    output_var = output_list[1]
-    input_var = input_list[1]
+# get test and make predictions
+test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
+_notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units=true)
 
-    input_string = string(input_var)
-    output_string = string(output_var)
+tst_out_eng = restore_eng_units(test_output,output_sch)[:expected_rwd]
 
-    x1 = tst_in_eng[input_var]
-    x2 = tst_out_eng[output_var]
-    y = fit_eng[output_var]
+#plot results
+p1 = Plots.scatter(test_input',tst_out_eng,title="tprob vs rwd",label="true")
+scatter!(test_input',pred_outputs[:expected_rwd],label="model")
+#  p2 = Plots.scatter(pred_inputs[:e_mcts],test_output',title="e_mcts vs rwd",label="")
+#  p2 = Plots.scatter(test_input[2,:],test_output',title="e_mcts vs rwd",label="")
+p3 = Plots.scatter(pred_outputs[:expected_rwd],tst_out_eng,title="pred vs actual",label="")
+#  p4 = Plots.scatter3d(repmat(test_input[1,:],750,1),repmat(test_input[2,:],750,1),repmat(test_output',750,1))
+#  p4 = Plots.scatter3d(test_input[1,:]',test_input[2,:]',test_output)
 
-    y_range = (minimum(y),maximum(y))
-    x1_range = (minimum(x1),maximum(x1))
-    x2_range = (minimum(x2),maximum(x2))
-
-    p1 = Plots.scatter(x1,y,label="SQ NN Model, D=8",color=:black)
-    #  p1 = Plots.scatter(tst_tprob,tst_exp_rwd,label=output_string)
-    scatter!(ok_tprob,ok_exp_rwd,label="D=3",color=:blue,m=:+)
-    title!("$output_string vs. $input_string")
-    xaxis!("$input_string",x1_range)
-    yaxis!("$output_string")
-
-    p2 = Plots.scatter(x1,y,label="SQ NN Model, D=8",color=:black)
-    #  p1 = Plots.scatter(tst_tprob,tst_exp_rwd,label=output_string)
-    scatter!(bad_tprob,bad_exp_rwd,label="D=1",color=:green,marker=:star4,markersize=5,markerstrokewidth=0)
-    title!("$output_string vs. $input_string")
-    xaxis!("$input_string",x1_range)
-    yaxis!("$output_string")
-
-    Plots.plot(p1,p2,size=(1200,500))
-else
-    p1 = Plots.scatter(tst_in_eng[:avg_degree],fit_eng[:expected_rwd],label="expected_reward")
-    p2 = Plots.scatter(tst_in_eng[:avg_degree],fit_eng[:upm_lpm],label="upm_lpm")
-    Plots.plot(p1,p2)
-    Plots.savefig(fig_name,dpi=300)
-    Plots.show()
-end
-#  Plots.scatter(input_eng,fit_eng[:upm_lpm],label=text_labels,layout=2)
+#  plot(p1,p2,p3,p4,size=(1200,600))
+plot(p1,p3,size=(1200,600))
