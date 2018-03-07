@@ -2,14 +2,20 @@ using JuliaDB
 using MXNet
 using Plots
 using ProgressMeter
+using JLD
 
 mutable struct SQ_model
     input_sch::ML.Schema
     output_sch::ML.Schema
-    network #neural network
+    network::MXNet.mx.FeedForward #neural network
 end
 
 function data_source(batchsize::Int64,train_in,train_out,valid_in,valid_out)
+    #  println(batchsize)
+    #  display(train_in)
+    #  display(train_out)
+    #  display(valid_in)
+    #  display(valid_out)
   train = mx.ArrayDataProvider(
     :data => train_in,
     :label => train_out,
@@ -65,7 +71,7 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String; input_dict::D
            eval_metric = mx.MSE(),
            eval_data = evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer()])
+           callbacks = [mx.speedometer(),mx.do_checkpoint("test_nn")])
 
     # put into a SQ_model for return
     SQ = SQ_model(input_sch,output_sch,network)
@@ -106,6 +112,7 @@ function restore_eng_units(ary::Array,sch::ML.Schema)
     return arrays
     #  return [x.second for x in arrays]
 end
+
 function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
                      schema::Array=[])
 
@@ -157,13 +164,32 @@ end
 #  train_fname = "logs/transition_vary_4.csv"
 #  test_fname = "logs/transition_vary_test_4.csv"
 train_fname = "logs/transition_e_vary_reference_solver_training.csv"
-test_fname = "logs/transition_e_vary_ok_solver.csv"
+test_fname = "logs/transition_e_vary_bad_solver.csv"
 inputs = Dict(:tprob=>ML.Continuous)
 #  inputs = Dict(:tprob=>ML.Continuous,:e_mcts=>ML.Continuous)
 outputs = Dict(:expected_rwd=>ML.Continuous)
 
 # make model
-SQmodel = make_nn_SQ_model(train_fname,test_fname,input_dict=inputs,output_dict=outputs,nn_epoc=200,nn_batch_size=50)
+SQmodel = make_nn_SQ_model(train_fname,test_fname,input_dict=inputs,output_dict=outputs,nn_epoc=20,nn_batch_size=25)
+
+#  jldopen("test.jld","w") do file
+    #  write(file,"test","testing")
+#  end
+
+jldopen("test_SQmodel.jld","w") do file
+    JLD.addrequire(file,MXNet)
+    JLD.addrequire(file,JuliaDB)
+    #  JLD.write(file,"SQmodel",SQmodel,"train_fname",train_fname,"test_fname",test_fname,"inputs",inputs,"outputs",outputs)
+    #  write(file,"SQmodel",SQmodel)
+    #  write(file,"SQin",SQmodel.input_sch)
+    #  write(file,"SQout",SQmodel.output_sch)
+    #  write(file,"SQnet",SQmodel.network)
+    write(file,"train_fname",train_fname)
+    write(file,"test_fname",test_fname)
+    write(file,"inputs",inputs)
+    write(file,"outputs",outputs)
+end
+
 
 # get test and make predictions
 test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
