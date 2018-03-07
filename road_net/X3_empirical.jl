@@ -57,30 +57,20 @@ function residual_moment(c::Array{Float64},t::Array{Float64};
         return r_val, r_loc, r_width, r_mom
     end
 end
-function max_residual_moment(c::Array{Float64},t::Array{Float64};
-                         r_star::Float64=mean(t),solver_rwd_range::Float64=1.,return_vec::Bool=false,
-                        return_hists::Bool=true)
-
-    #  display("c_exp:$(mean(c)), t_exp: $(mean(t))")
-    edg_max = maximum([maximum(c), maximum(t)])
-    edg_min = minimum([minimum(c), minimum(t)])
-    #  display("edg_max: $edg_max, edg_min: $edg_min")
-    hist_edges = linspace(edg_min,edg_max,100)
-    #  display(hist_edges)
-
-    # based on distribution with widest range, use that as the edges for the second distribution
-    c_norm = normalize(fit(Histogram,c,hist_edges,closed=:left),mode=:probability)
-    t_norm = normalize(fit(Histogram,t,hist_edges,closed=:left),mode=:probability)
-
-    # r for residual
-    r_val, r_loc,r_width = hist_diff(c_norm,t_norm)
-
+function std_weighted_mean_difference(c::Array{Float64},t::Array{Float64};
+                                      solver_rwd_range::Float64=1.)
     t1 = mean(c)*1/std(c)
     t2 = mean(t)*1/std(t)
     t3 = t1-t2
     t4 = t3/solver_rwd_range
     println("p1: $t1, p2: $t2, p3: $t3")
-    return t4
+    t5 = 2.*exp(t4)/(exp(t4)+1.) - 0.
+    return t5
+end
+function std_weighted_mean_difference(c::Distributions.Distribution,t::Distributions.Distribution;
+                                      solver_rwd_range::Float64=1.)
+    val = (c.μ/c.σ - t.μ/t.σ)/1. # the denominator is to scale by the total problem reward range
+    return 2.*exp(val)/(exp(val)+1.) - 0.
 end
 
 function max_lik(c::Array{Float64},t::Array{Float64};

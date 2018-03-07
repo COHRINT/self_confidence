@@ -3,6 +3,16 @@ using GaussianProcesses
 using Plots, StatPlots
 using LaTeXStrings
 include("X3_empirical.jl")
+include("utilities.jl")
+
+function annotate_pct(coords::Tuple{Float64,Float64},txt::Plots.PlotText,plt::Plots.Plot)
+    xmin = plt.subplots[1].attr[:xaxis][:extrema].emin
+    xmax = plt.subplots[1].attr[:xaxis][:extrema].emax
+    ymin = plt.subplots[1].attr[:yaxis][:extrema].emin
+    ymax = plt.subplots[1].attr[:yaxis][:extrema].emax
+    println("$xmin, $xmax, $ymin, $ymax")
+    annotate!(coords[1]*(xmax-xmin)+xmin,coords[2]*(ymax-ymin)+ymin,txt)
+end
 
 srand(12345)
 trusted_n=5;                          #number of training points
@@ -41,29 +51,29 @@ end
 r_moms = []
 mom_exps = []
 scaled_dists = []
-max_res = []
+std_wght = []
+solver_reward_range = 0.5
 for (c,t) in zip(dist_cand,dist_trust)
     # calculate different SQ metrics
     # moment of residuals
     rand_c = rand(c,10000)
     rand_t = rand(t,10000)
-    sr = 1.
 
-    _unused, _unused, _unused, rm = residual_moment(rand_c,rand_t,solver_rwd_range=sr,return_hists=false)
-    push!(r_moms,rm)
-
-    # moment of expected rwd
-    #  display("Mean c: $(mean(rand_c)), Mean t: $(mean(rand_t))")
-    me = residual_moment(mean(rand_c),mean(rand_t),solver_rwd_range=sr)
-    push!(mom_exps,me)
-
-    # scaled distance of expected rwd
-    sd = (mean(rand_c)-mean(rand_t))/sr
-    push!(scaled_dists,sd)
+    #  _unused, _unused, _unused, rm = residual_moment(rand_c,rand_t,solver_rwd_range=sr,return_hists=false)
+    #  push!(r_moms,rm)
+#
+    #  # moment of expected rwd
+    #  #  display("Mean c: $(mean(rand_c)), Mean t: $(mean(rand_t))")
+    #  me = residual_moment(mean(rand_c),mean(rand_t),solver_rwd_range=sr)
+    #  push!(mom_exps,me)
+#
+    #  # scaled distance of expected rwd
+    #  sd = (mean(rand_c)-mean(rand_t))/sr
+    #  push!(scaled_dists,sd)
 
     # max residual
-    mr = max_residual_moment(rand_c,rand_t,solver_rwd_range=sr,return_hists=false)
-    push!(max_res,mr)
+    sw = std_weighted_mean_difference(c,t,solver_rwd_range=solver_reward_range)
+    push!(std_wght,sw)
 
 end
 
@@ -80,39 +90,44 @@ end
 
 p2 = plot(dist_trust[1],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="A")
 plot!(dist_cand[1],linecolor=:red,fill=(0,0.2,:red))
-annotate!(0.07,10.,text(L"SQ\rightarrow High?",:black,:center))
+annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",std_wght[1]))",:center,:center),p2)
+#  annotate!(0.07,10.,text(L"SQ\rightarrow High?",:black,:center))
 
 p3 = plot(dist_trust[2],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="B")
 plot!(dist_cand[2],linecolor=:red,fill=(0,0.2,:red))
-annotate!(-0.15,12.,text(L"SQ\rightarrow Very Low",:black,:center))
+annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",std_wght[2]))",:center,:center),p3)
+#  annotate!(-0.15,12.,text(L"SQ\rightarrow Very Low",:black,:center))
 
 p4 = plot(dist_trust[3],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="C")
 plot!(dist_cand[3],linecolor=:red,fill=(0,0.2,:red))
-annotate!(0.15,12.,text(L"SQ\rightarrow Low?",:black,:center))
+annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",std_wght[3]))",:center,:center),p4)
+#  annotate!(0.15,12.,text(L"SQ\rightarrow Low?",:black,:center))
 
 p5 = plot(dist_trust[4],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="C")
 plot!(dist_cand[4],linecolor=:red,fill=(0,0.2,:red))
-annotate!(0.15,12.,text(L"SQ\rightarrow Very High",:black,:center))
+annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",std_wght[4]))",:center,:center),p5)
+#  annotate!(0.15,12.,text(L"SQ\rightarrow Very High",:black,:center))
 
 # empty filler frames
 pe1 = plot(framestyle = :none)
+annotate!(0.1,0.5,text("Solver Quality:\n  0->Poor Quality\n  1-> Equal to Trusted\n  2->Better than Trusted\nThink of as % quality",:center,:left))
 #  annotate!(0.,0.,text("empty",:black,:center))
 pe2 = plot(framestyle = :none)
+annotate!(0.1,0.5,text("Solver Rwd Range = $solver_reward_range",:center,:left))
 #  annotate!(0.,0.,text("empty",:black,:center))
 pe3 = plot(framestyle = :none)
 #  annotate!(0.,0.,text("empty",:black,:center))
 
 p1notes = plot(framestyle = :none)
-annotate!(0.10,0.5,text("$(@sprintf("residual moment:%0.3f\nmoment of expected rewards:%0.3f\nscaled distance:%0.3f\nmax_res:%0.9f",
-                                    r_moms[1],mom_exps[1],scaled_dists[1],max_res[1]))",10,:black,:left,:bottom))
-p2notes = plot(framestyle = :none)
-annotate!(0.10,0.5,text("$(@sprintf("residual moment:%0.3f\nmoment of expected rewards:%0.3f\nscaled distance:%0.3f\nmax_res:%0.9f",
-                                    r_moms[2],mom_exps[2],scaled_dists[2],max_res[2]))",10,:black,:left,:bottom))
-p3notes = plot(framestyle = :none)
-annotate!(0.10,0.5,text("$(@sprintf("residual moment:%0.3f\nmoment of expected rewards:%0.3f\nscaled distance:%0.3f\nmax_res:%0.9f",
-                                    r_moms[3],mom_exps[3],scaled_dists[3],max_res[3]))",10,:black,:left,:bottom))
-p4notes = plot(framestyle = :none)
-annotate!(0.10,0.5,text("$(@sprintf("residual moment:%0.3f\nmoment of expected rewards:%0.3f\nscaled distance:%0.3f\nmax_res:%0.9f",
-                                    r_moms[4],mom_exps[4],scaled_dists[4],max_res[4]))",10,:black,:left,:bottom))
+annotate!(0.5,0.5,text("SQ: $(@sprintf("%0.3f",std_wght[1]))",:center,:center))
 
-plot(p1,p2,p1notes,pe1,p3,p2notes,pe2,p4,p3notes,pe3,p5,p4notes,layout=(4,3),size=(1000,800))
+p2notes = plot(framestyle = :none)
+annotate!(0.5,0.5,text("SQ: $(@sprintf("%0.3f",std_wght[2]))",:center,:center))
+
+p3notes = plot(framestyle = :none)
+annotate!(0.5,0.5,text("SQ: $(@sprintf("%0.3f",std_wght[3]))",:center,:center))
+
+p4notes = plot(framestyle = :none)
+annotate!(0.5,0.5,text("SQ: $(@sprintf("%0.3f",std_wght[4]))",:center,:center))
+
+plot(p1,p2,pe1,p3,pe2,p4,pe3,p5,layout=(4,2),size=(1000,600))
