@@ -31,7 +31,7 @@ function data_source(batchsize::Int64,train_in,train_out,valid_in,valid_out)
   train, valid
 end
 
-function make_nn_SQ_model(train_fname::String,valid_fname::String; input_dict::Dict=Dict(),
+function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::String; input_dict::Dict=Dict(),
                           output_dict::Dict=Dict(),nn_epoc::Int64=15,nn_batch_size::Int64=25)
 
     training_in, training_out, training_table, input_sch, output_sch = return_data(train_fname,inputs=input_dict,outputs=output_dict)
@@ -66,12 +66,12 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String; input_dict::D
 
 
     # train, reporting loss for training and evaluation sets
-    mx.fit(network, optimizer, trainprovider,
+    mx.train(network, optimizer, trainprovider,
            initializer = mx.NormalInitializer(0.0, 0.1),
            eval_metric = mx.MSE(),
            eval_data = evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer(),mx.do_checkpoint("test_nn")])
+           callbacks = [mx.speedometer(),mx.do_checkpoint(log_fname,frequency=2)])
 
     # put into a SQ_model for return
     SQ = SQ_model(input_sch,output_sch,network)
@@ -121,18 +121,31 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     end
 
     table = loadtable(fname,escapechar='"')
+    input_sch = nothing
+    output_sch = nothing
+    schema_dict = Dict()
 
     if isempty(schema)
-        schema_dict = Dict()
-        println("##### getting data #####")
         #  p = Progress(length(colnames(table)),dt=0.1,desc="Processing",output=STDOUT)
         for itm_name in colnames(table)
             if itm_name ∈ keys(inputs)
                 #  ProgressMeter.next!(p,showvalues=[itm_name])
-                schema_dict[itm_name] = inputs[itm_name]
+                key_type = nothing
+                if contains(inputs[itm_name],"Continuous")
+                    key_type = ML.Continuous
+                elseif contains(inputs[itm_name],"Categorical")
+                    key_type = ML.Categorical
+                end
+                schema_dict[itm_name] = key_type
             elseif itm_name ∈ keys(outputs)
+                key_type = nothing
+                if contains(outputs[itm_name],"Continuous")
+                    key_type = ML.Continuous
+                elseif contains(outputs[itm_name],"Categorical")
+                    key_type = ML.Categorical
+                end
                 #  ProgressMeter.next!(p,showvalues=[itm_name])
-                schema_dict[itm_name] = outputs[itm_name]
+                schema_dict[itm_name] = key_type
             else
                 #  ProgressMeter.next!(p,showvalues=[itm_name])
                 # ignore variables that aren't inputs or outputs
@@ -160,32 +173,45 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     return in_data, out_data, table, input_sch, output_sch
 end
 
+function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
+    # the default one doesn't work for some reason, so I'll do it by hand
+    arch, arg_params, aux_params = mx.load_checkpoint(nn_prefix,epoch)
+    model = FeedForward(arch)
+    model.arg_params = arg_params
+    model.aux_params = aux_params
+
+    sq_data = JLD.load(sq_fname)
+    input_sch = sq_data["input_sch"]
+    output_sch = sq_data["output_sch"]
+
+    SQ = SQ_model(input_sch,output_sch,model)
+    return SQ
+end
+
 # problem setup
 #  train_fname = "logs/transition_vary_4.csv"
 #  test_fname = "logs/transition_vary_test_4.csv"
 train_fname = "logs/transition_e_vary_reference_solver_training.csv"
-test_fname = "logs/transition_e_vary_bad_solver.csv"
-inputs = Dict(:tprob=>ML.Continuous)
-#  inputs = Dict(:tprob=>ML.Continuous,:e_mcts=>ML.Continuous)
-outputs = Dict(:expected_rwd=>ML.Continuous)
+test_fname = "logs/transition_e_vary_ok_solver.csv"
+log_fname = "nn_logs/transition_e_vary"
+inputs = Dict(:tprob=>"ML.Continuous")
+#  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
+#  outputs = Dict(:X3_1=>"ML.Continuous")
+outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 # make model
-SQmodel = make_nn_SQ_model(train_fname,test_fname,input_dict=inputs,output_dict=outputs,nn_epoc=20,nn_batch_size=25)
+SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,
+                           nn_epoc=1500,nn_batch_size=250)
+#  SQmodel = load_network("nn_logs/test_nn",20,"test_SQmodel.jld")
 
-#  jldopen("test.jld","w") do file
-    #  write(file,"test","testing")
-#  end
-
+info("Writing variable to file:")
 jldopen("test_SQmodel.jld","w") do file
     JLD.addrequire(file,MXNet)
     JLD.addrequire(file,JuliaDB)
-    #  JLD.write(file,"SQmodel",SQmodel,"train_fname",train_fname,"test_fname",test_fname,"inputs",inputs,"outputs",outputs)
-    #  write(file,"SQmodel",SQmodel)
-    #  write(file,"SQin",SQmodel.input_sch)
-    #  write(file,"SQout",SQmodel.output_sch)
-    #  write(file,"SQnet",SQmodel.network)
     write(file,"train_fname",train_fname)
     write(file,"test_fname",test_fname)
+    write(file,"input_sch",SQmodel.input_sch)
+    write(file,"output_sch",SQmodel.output_sch)
     write(file,"inputs",inputs)
     write(file,"outputs",outputs)
 end
@@ -195,14 +221,14 @@ end
 test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
 _notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units=true)
 
-tst_out_eng = restore_eng_units(test_output,output_sch)[:expected_rwd]
+tst_out_eng = restore_eng_units(test_output,output_sch)[:X3_1]
 
 #plot results
 p1 = Plots.scatter(test_input',tst_out_eng,title="tprob vs rwd",label="true")
-scatter!(test_input',pred_outputs[:expected_rwd],label="model")
+scatter!(test_input',pred_outputs[:X3_1],label="model")
 #  p2 = Plots.scatter(pred_inputs[:e_mcts],test_output',title="e_mcts vs rwd",label="")
 #  p2 = Plots.scatter(test_input[2,:],test_output',title="e_mcts vs rwd",label="")
-p3 = Plots.scatter(pred_outputs[:expected_rwd],tst_out_eng,title="pred vs actual",label="")
+p3 = Plots.scatter(pred_outputs[:X3_1],tst_out_eng,title="pred vs actual",label="")
 #  p4 = Plots.scatter3d(repmat(test_input[1,:],750,1),repmat(test_input[2,:],750,1),repmat(test_output',750,1))
 #  p4 = Plots.scatter3d(test_input[1,:]',test_input[2,:]',test_output)
 

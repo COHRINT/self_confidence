@@ -76,8 +76,8 @@ function get_reward_distribution(g::MetaGraph, mdp::roadnet_with_pursuer; max_st
 
     @info md"# Simulations"
     tic()
-    parallel_sim = true
-    if parallel_sim
+
+    if nprocs() > 1
         q = []
         for pol in PT
             value = Sim(mdp,pol,initial_state,max_steps=max_steps)
@@ -144,15 +144,15 @@ function netprops2array(g::roadnet_with_pursuer)
 
 end
 
-function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug)
+function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,repeats::Int64=25,sim_steps::Int64=-1,dis_rwd::Bool=false)
 
     # initialize the DataFrame
     training_data = DataFrame(graphID=Int64[],discount=Float64[],tprob=Float64[],num_exit_nodes=Float64[],exit_rwd=Float64[],
                               caught_rwd=Float64[],sensor_rwd=Float64[],avg_degree=Float64[],deg_variance=Float64[],
                               diam=Float64[],max_degree=Float64[],N=Float64[],E=Float64[],its=Float64[],
                               e_mcts=Float64[],d_mcts=Float64[],steps=Float64[],repeats=Float64[],
-                              exit_distance=Float64[],pursuer_distance=Float64[],expected_rwd=Float64[],
-                              upm_lpm=Float64[],mean=Float64[],median=Float64[],moment_2=Float64[],moment_3=Float64[],
+                              exit_distance=Float64[],pursuer_distance=Float64[],X3_1=Float64[],X3_2=Float64[],
+                              mean=Float64[],median=Float64[],moment_2=Float64[],moment_3=Float64[],
                               moment_4=Float64[],moment_5=Float64[],moment_6=Float64[],moment_7=Float64[],
                               moment_8=Float64[],moment_9=Float64[],moment_10=Float64[])
     #### Logging
@@ -193,9 +193,12 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
             d_mcts = [problem[:mcts_depth]]
             e_mcts = [problem[:mcts_e]]
 
-            steps = 5*mdp.road_net.gprops[:net_stats].diam
-            repeats = 250 # how many times to repeat each simlation
-            dis_rwd = false
+            if sim_steps == -1
+                # -1 signifies auto calculation
+                steps = 5*mdp.road_net.gprops[:net_stats].diam
+            else
+                steps = sim_steps
+            end
 
             start = problem[:evader_start]
             escape = problem[:exit_loc]
@@ -212,7 +215,7 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
             end
 
             @info "calculating X3"
-            SQ_data = X3(r_dist,train=true)
+            SQ_data = X3(r_dist)
             @debug SQ_data
 
             @info "calculating statistical moments"
@@ -229,6 +232,8 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
 
             @info "combining to a row"
             data_entry = [net_num mdp_props_ary solver_props_ary SQ_data r_dist_moments]
+            @debug length(net_num) length(mdp_props_ary) length(solver_props_ary) length(SQ_data) length(r_dist_moments)
+            @debug data_entry
             @debug length(data_entry)
             @debug training_data
             push!(training_data,data_entry)

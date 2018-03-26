@@ -57,20 +57,40 @@ function residual_moment(c::Array{Float64},t::Array{Float64};
         return r_val, r_loc, r_width, r_mom
     end
 end
-function std_weighted_mean_difference(c::Array{Float64},t::Array{Float64};
-                                      solver_rwd_range::Float64=1.)
-    t1 = mean(c)*1/std(c)
-    t2 = mean(t)*1/std(t)
-    t3 = t1-t2
-    t4 = t3/solver_rwd_range
-    println("p1: $t1, p2: $t2, p3: $t3")
-    t5 = 2.*exp(t4)/(exp(t4)+1.) - 0.
-    return t5
+function general_logistic(x::Float64;k::Float64=1.,x0::Float64=0.,L::Float64=2.)
+    return L/(1+exp(-k*(x-x0)))
 end
-function std_weighted_mean_difference(c::Distributions.Distribution,t::Distributions.Distribution;
-                                      solver_rwd_range::Float64=1.)
-    val = (c.μ/c.σ - t.μ/t.σ)/1. # the denominator is to scale by the total problem reward range
-    return 2.*exp(val)/(exp(val)+1.) - 0.
+function general_logistic(x::Array{Float64};k::Float64=1.,x0::Float64=0.,L::Float64=2.)
+    return L./(1+exp(-k.*(x-x0)))
+end
+
+function X3(c::Array{Float64},t::Array{Float64};
+            solver_rwd_range::Float64=1.,scale::Float64=2.,offset::Float64=0.)::Float64
+    c = Normal(mean(c),stc(c))
+    t = Normal(mean(t),stc(t))
+    val = X3(c,t;solver_rwd_range=solver_rwd_range)
+    return val
+end
+function X3(c::Distributions.Distribution,t::Distributions.Distribution;
+            solver_rwd_range::Float64=1.,L::Float64=2.,x0::Float64=0.,k::Float64=1.)::Float64
+    # using version of 'standardized moment' https://en.wikipedia.org/wiki/Standardized_moment
+    # in this version we are using 0. as the absolute mean on which both distributions are being compared
+    # also we scale the moment a second time by the total range of known solutions for all solvers
+    inv_stdc = 1/c.σ
+    inv_stdt = 1/t.σ
+    t1 = c.μ*inv_stdc
+    t2 = t.μ*inv_stdt
+
+    diff_std_mom = t1-t2 #difference in standard moments about 0
+
+    val = NaN
+    if c.μ == 0. && t.μ == 0.
+        val = general_logistic(diff_std_mom,k=k,x0=x0,L=L)
+    else
+        scaled_standardized_moment = diff_std_mom/solver_rwd_range
+        val = general_logistic(scaled_standardized_moment,k=k,x0=x0,L=L)
+    end
+    return val
 end
 
 function max_lik(c::Array{Float64},t::Array{Float64};

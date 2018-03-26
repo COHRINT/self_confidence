@@ -1,4 +1,5 @@
 using Base.Test
+using Distributions
 
 function UPM_LPM(rwd::Vector{Float64};threshold::Float64=0.)::Float64
     # Upper Partial Moment/ Lower Partial Moment
@@ -24,30 +25,81 @@ function UPM_LPM(rwd::Vector{Float64};threshold::Float64=0.)::Float64
     upm_lpm = upm/lpm
 end
 
-function X3(rwd::Vector{Float64};train::Bool=false)::Array{Float64}
-    # SOLVER QUALITY
-    # THIS ACTUALLY NEEDS TO ACCESS SOME MODEL, AND THEN PREDICT BASED ON PROBLEM AND SOVLER PARAMETERS
-    if train
-        # return data for the training set
-        thresh = median(rwd)
-        #  upm_lpm = UPM_LPM(rwd,threshold=thresh)
-        #  if upm_lpm == -Inf
-            #  # make arbitrarily "big"
-            #  upm_lpm = -1e6
-        #  elseif upm_lpm == Inf
-            #  upm_lpm = 1e6
-        #  end
-        OA = X4(rwd,threshold=thresh)
-        #  println("########## OA: $OA ##########")
-        return [thresh OA]
+function general_logistic(x::Float64;k::Float64=1.,x0::Float64=0.,L::Float64=2.)
+    # using logistic function https://en.wikipedia.org/wiki/Logistic_function
+    return L/(1+exp(-k*(x-x0)))
+end
+function general_logistic(x::Array{Float64};k::Float64=1.,x0::Float64=0.,L::Float64=2.)
+    return L./(1+exp.(-k.*(x-x0)))
+end
+
+function X3(r::Array{Float64})
+    return [mean(r) std(r)]
+end
+function X3(c::Array{Float64},t::Array{Float64};
+            global_rwd_range::Tuple{Float64,Float64}=(1.,1.),L::Float64=2.,x0::Float64=0.,
+            return_raw_sq::Bool=false)
+    c = Normal(mean(c),std(c))
+    t = Normal(mean(t),std(t))
+    if return_raw_sq
+        (SQ,sq,k) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0)
+        return SQ,sq,k
     else
-        # return predictions
-        error("X3 test not implemented yet")
+        SQ = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0)
+        return SQ
+    end
+end
+function X3(c::Distributions.Distribution,t::Distributions.Distribution;
+            global_rwd_range::Tuple{Float64,Float64}=(-1.,1.),L::Float64=2.,x0::Float64=0.,
+            return_raw_sq::Bool=false)
+    # using idea of 'standardized moment' https://en.wikipedia.org/wiki/Standardized_moment
+    # in this version we are using `glb_rwd_low` as the absolute mean on which both distributions are being compared
+    # also we scale the moment a second time by the total range of known solutions for all solvers
+    glb_rwd_low = global_rwd_range[1]
+    glb_rwd_high = global_rwd_range[2]
+    glb_rwd_rng = glb_rwd_high - glb_rwd_low
 
-        predicted_threshold = 0.
-        predicted_upm_lpm = 0.
+    # handle degenerate cases where solution can go to Inf
+    if isapprox(c.σ,0)
+        c_sig = 1.
+    else
+        c_sig = c.σ
+    end
+    if isapprox(t.σ,0)
+        t_sig = 1.
+    else
+        t_sig = t.σ
+    end
 
-        return [predicted_threshold predicted_upm_lpm]
+    if c.μ == glb_rwd_low && t.μ == glb_rwd_low
+        # degenerate case where c.μ and t.μ are equal (i.e. numerator goes to zero), we still want to compare sigmas
+        println("### c.μ == t.μ ###")
+        cr = 1/(c_sig)
+        tr = 1/(c_sig)
+    else
+        # standard moments w.r.t. glb_rwd_low
+        cr = (c.μ-glb_rwd_low)/(c_sig)
+        tr = (t.μ-glb_rwd_low)/(t_sig)
+    end
+
+    println("cmu: $(c.μ), tmu: $(t.μ)")
+    println("csig: $(c_sig), tsig: $(t_sig), glb_rwd_rng: $glb_rwd_rng")
+    println("cr: $cr, tr: $tr")
+
+    sq = (cr-tr)
+    #  if t_sig > glb_rwd_rng
+        #  k = 5 * (1/glb_rwd_rng)
+    #  else
+        k = 5 * (t_sig/glb_rwd_rng)
+    #  end
+
+    SQ = general_logistic(sq,k=k,x0=x0,L=L)
+
+    println("SQ: $SQ, sq: $sq, k: $k")
+    if return_raw_sq
+        return SQ,sq,k
+    else
+        return SQ
     end
 end
 
@@ -77,3 +129,16 @@ end
 @test X4([10.,-10.,-10.,-10.]) ≈ -1/2
 @test X4([-100.,100.,100.,100.]) ≈ 1/2
 @test X4([100.,-100.,-100.,-100.]) ≈ -1/2
+
+# tests for X3
+#  @test X3(Normal(0.,1.),Normal(0.,1.)) ≈ 1.
+#  @test X3(Normal(100.,2.),Normal(0.,1.)) ≈ 2.
+#  @test X3(Normal(100.,2.),Normal(0.,1.),L=3.) ≈ 3.
+#  @test X3(Normal(-10e9,2.),Normal(0.,1.)) ≈ 0.
+#  @test X3(Normal(100.,2.),Normal(0.,1.),global_rwd_range=(-1e12,1e12)) ≈ 1.
+#  @test X3(Normal(100.,2.),Normal(0.,1.),global_rwd_range=(-1e-12,1e-12)) ≈ 2.
+#  @test X3(Normal(-1000,2.),Normal(0.,1.),global_rwd_range=(-1.,1.)) ≈ 0.
+@test general_logistic(0.,L=1.,k=1.,x0=0.) ≈ 0.5
+@test general_logistic(1.,L=2.,k=100.,x0=0.) ≈ 2.
+@test general_logistic(-10.,L=2.,k=100.,x0=0.) ≈ 0.
+@test general_logistic(5.,L=2.,k=100.,x0=5.) ≈ 1.

@@ -5,9 +5,9 @@ using JLD
 using MicroLogging
 using Base.Markdown
 include("roadnet_pursuer_generator_MDP.jl")
-include("outcome_assessment.jl")
 include("road_net_visualize.jl")
 include("utilities.jl")
+include("self_confidence.jl")
 
 function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int64=25,
                         its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],exp_vals::Array{Float64}=[5.],
@@ -106,9 +106,9 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         return
     end
 
-    @debug "IA $IA\nDA $DA\nU $U"
-    @debug "D2 $D2"
-    @debug "$(D2[:,2]), $(D2[:,3])"
+    #  @debug "IA $IA\nDA $DA\nU $U"
+    #  @debug "D2 $D2"
+    #  @debug "$(D2[:,2]), $(D2[:,3])"
 
     if false
         fig,ax_ary = PyPlot.subplots(2,1,sharex=true)
@@ -152,28 +152,49 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
 
         # points = # of points where the Kernel Density Estimator is estimated
         # bw_method = bandwidth of the KDE
+        @info "shape of U is: $(size(U))"
+        @info "x_ticks: $x_ticks"
         @info "network diameter = $(mdp.road_net.gprops[:net_stats].diam)"
         @info "vline tick_location= $vline_tick"
-        ax_ary[:violinplot](U',x_ticks,widths=0.5,points=100,showmedians=true)
-        ax_ary[:axvline](x=vline_tick,color="red",lw=1,label="Net. Diam.")
+        trusted_solver_num = 9
+        ax_ary[:violinplot](U[1:end .!= trusted_solver_num,:]',x_ticks[1:end .!= trusted_solver_num],widths=0.5,points=100,showmedians=true)
+        trusted_violin = ax_ary[:violinplot](U[trusted_solver_num,:]',[x_ticks[trusted_solver_num]],widths=0.5,points=100,showmedians=true)
+        #  @info trusted_violin["bodies"]
+        #  for pc in trusted_violin["bodies"]
+            #  pc.set_facecolor("red")
+            #  pc.set_edgecolor("red")
+        #  end
+
+        if false
+            #add vline for network diameter, interesting to see
+            ax_ary[:axvline](x=vline_tick,color="red",lw=1,label="Net. Diam.")
+        end
+        for i in x_ticks
+            SQ = X3(U[i,:],U[trusted_solver_num,:],global_rwd_range=(minimum(U),maximum(U)))
+            println("SQ: $SQ")
+            #  @info "X3 at $i: $SQ"
+            ax_ary[:annotate]("SQ: $(@sprintf("%0.2f",SQ))",xy=(i,1),size=6)
+        end
 
         ax_ary[:set_ylabel]("$dis_str")
-        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_vals\nD= $d_vals\nBased on $num_repeats separate simulations"
-        ax_ary[:set_title](ttl_str)
         ax_ary[:set_xticks](x_ticks)
         ax_ary[:xaxis][:set_ticklabels](x_lbls)
         ax_ary[:set_xlabel]("MCTS Depth")
         ax_ary[:legend](loc=1,bbox_to_anchor=(1.0,1.15))
-
-        fig[:tight_layout]()
-        #  ax_ary[:subplots_adjust](top=0.8)
+        ax_ary[:set_title]("Reward vs. MCTS Depth")
     end
 
     if current_logger().default_min_level == MicroLogging.Debug
+        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_vals\nD= $d_vals\nBased on $num_repeats separate simulations"
+        ax_ary[:set_title](ttl_str)
+        fig[:tight_layout]()
         @info "displaying plot(s)"
         show()
     else
+        ax_ary[:set_title]("Reward Vs. MCTS Depth")
+        fig[:tight_layout]()
         @info "saving plot(s) to file"
+        @info "filename: $img_fname"
         PyPlot.savefig(img_fname,dpi=300,transparent=true)
     end
 end
@@ -197,7 +218,7 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
-    its_rng = [100]
+    its_rng = [10]
     #  e_vals = [5.]
     e_vals = [(ext_rwd-cgt_rwd)*0.25]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
@@ -205,7 +226,7 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 75 # number of steps the simulation runs
-    repeats = 150 # how many times to repeat each simlation
+    repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
@@ -250,7 +271,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 150 # number of steps the simulation runs
-    repeats = 100 # how many times to repeat each simlation
+    repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
