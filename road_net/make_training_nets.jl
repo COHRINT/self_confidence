@@ -4,7 +4,7 @@ include("network_library.jl")
 
 function n_rand_in_range(A::Array,N::Int64)
     # generate an array of length N within the range specified by A
-    # length 1 means parameter is fixes, length 2 means random within bounds
+    # length 1 means parameter is fixed, length 2 means random within bounds
     @assert length(A) == 1 || length(A) == 2
     eltype = typeof(A).parameters[1]
     @assert eltype == Float64 || eltype == Int64

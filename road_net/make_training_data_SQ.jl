@@ -177,6 +177,7 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
         net_num = problem[1]
         problem = problem[2]
         if :error in keys(problem)
+            println(problem)
             continue
         else
             @info md"# Processing Network $i of $(length(problem_dict))"
