@@ -9,16 +9,12 @@ include("self_confidence.jl")
 mutable struct SQ_model
     input_sch::ML.Schema
     output_sch::ML.Schema
-    network::MXNet.mx.FeedForward #neural network
+    X3_1net::MXNet.mx.FeedForward #neural network
+    X3_2net::MXNet.mx.FeedForward #neural network
     range::Array{Float64}
 end
 
 function data_source(batchsize::Int64,train_in,train_out,valid_in,valid_out)
-    #  println(batchsize)
-    #  display(train_in)
-    #  display(train_out)
-    #  display(valid_in)
-    #  display(valid_out)
   train = mx.ArrayDataProvider(
     :data => train_in,
     :label => train_out,
@@ -31,14 +27,23 @@ function data_source(batchsize::Int64,train_in,train_out,valid_in,valid_out)
     batch_size = batchsize,
     shuffle = true,
     )
-  train, valid
+  println("DONE")
+  return train, valid
 end
 
 function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::String; input_dict::Dict=Dict(),
-                          output_dict::Dict=Dict(),nn_epoc::Int64=15,nn_batch_size::Int64=25)
+                          output_dict::Dict=Dict(),nn_epoc::Int64=15,nn_batch_size::Int64=25,
+                          train_subsample::Int64=1,valid_subsample::Int64=1)
 
-    training_in, training_out, training_table, input_sch, output_sch = return_data(train_fname,inputs=input_dict,outputs=output_dict)
-    valid_in, valid_out, valid_table, _notused, _notused = return_data(valid_fname,inputs=input_dict,outputs=output_dict)
+    training_in, training_out, training_table, input_sch, output_sch = return_data(train_fname,inputs=input_dict,outputs=output_dict,subsample=train_subsample)
+    valid_in, valid_out, valid_table, _notused, _notused = return_data(valid_fname,inputs=input_dict,outputs=output_dict,subsample=valid_subsample)
+
+    #  fig,ax = PyPlot.subplots(2,2)
+    #  ax[1][:scatter](training_in,training_out[2,:])
+    #  ax[2][:scatter](select(training_table,:tprob),select(training_table,:X3_1))
+    #  ax[3][:scatter](training_in,training_out[1,:])
+    #  ax[4][:scatter](select(training_table,:tprob),select(training_table,:X3_2))
+    #  show()
 
     output_list = collect(keys(output_dict))
     input_list = collect(keys(input_dict))
@@ -53,34 +58,52 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::Str
                         mx.Activation(act_type=:relu) =>
                         mx.FullyConnected(num_hidden=10) =>
                         mx.Activation(act_type=:relu) =>
-                        mx.FullyConnected(num_hidden= length(output_list)) =>
+                        mx.FullyConnected(num_hidden= 1) =>
                         mx.LinearRegressionOutput(mx.Variable(:label))
 
     # final network definition, don't change, except if using gpu
-    network = mx.FeedForward(net, context=mx.cpu())
+    X3_1net = mx.FeedForward(net, context=mx.cpu())
+    X3_2net = mx.FeedForward(net, context=mx.cpu())
 
     # set up the optimizer: select one, explore parameters, if desired
     #  optimizer = mx.SGD(η=0.01, μ=0.9, λ=0.00001)
     optimizer = mx.ADAM()
 
     # get data providers
-    trainprovider, evalprovider = data_source(#= batchsize =# nn_batch_size,training_in,training_out,
-                                              valid_in,valid_out)
-
+    # Array(training_out[1,:]') -- this is some crazy conversion so the output is the right type....
+    X3_1trainprovider, X3_1evalprovider = data_source(#= batchsize =# nn_batch_size,training_in,Array(training_out[1,:]'),valid_in,Array(valid_out[1,:]'))
+    X3_2trainprovider, X3_2evalprovider = data_source(#= batchsize =# nn_batch_size,training_in,Array(training_out[2,:]'),valid_in,Array(valid_out[2,:]'))
 
     # train, reporting loss for training and evaluation sets
-    mx.train(network, optimizer, trainprovider,
+    info("Training X3_1")
+    mx.train(X3_1net, optimizer, X3_1trainprovider,
            initializer = mx.NormalInitializer(0.0, 0.1),
            eval_metric = mx.MSE(),
-           eval_data = evalprovider,
+           eval_data = X3_1evalprovider,
+           n_epoch = nn_epoc,
+           callbacks = [mx.speedometer(),mx.do_checkpoint(log_fname,frequency=2)])
+    info("Training X3_2")
+    mx.train(X3_2net, optimizer, X3_2trainprovider,
+           initializer = mx.NormalInitializer(0.0, 0.1),
+           eval_metric = mx.MSE(),
+           eval_data = X3_2evalprovider,
            n_epoch = nn_epoc,
            callbacks = [mx.speedometer(),mx.do_checkpoint(log_fname,frequency=2)])
 
-    println(size(training_out))
+    #  println(size(training_out))
     training_range = [minimum(training_out,2) maximum(training_out,2)]
+    #  info(minimum(select(training_table,:X3_1)))
+    #  info(maximum(select(training_table,:X3_1)))
+    #  info(minimum(select(training_table,:X3_2)))
+    #  println(maximum(select(training_table,:X3_2)))
+    #  error()
+
+    #  println(training_range)
+    #  println(output_sch)
+    #  error()
 
     # put into a SQ_model for return
-    SQ = SQ_model(input_sch,output_sch,network,training_range)
+    SQ = SQ_model(input_sch,output_sch,X3_1net,X3_2net,training_range)
     return SQ
 end
 
@@ -89,20 +112,24 @@ function SQ_predict(SQ::SQ_model,inputs::Array,outputs::Array;use_eng_units::Boo
     display(inputs)
     println("outputs:")
     display(outputs)
-    plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs, shuffle=false)
-    fit = mx.predict(SQ.network, plotprovider)
+    X3_1plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs[2,:], shuffle=false)
+    X3_2plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs[1,:], shuffle=false)
+    X3_1fit = mx.predict(SQ.X3_1net, X3_1plotprovider)
+    X3_2fit = mx.predict(SQ.X3_2net, X3_1plotprovider)
     println("Predicted Output:")
-    display(fit)
+    display(X3_1fit)
+    display(X3_2fit)
     if use_eng_units
-        return restore_eng_units(inputs,SQ.input_sch), restore_eng_units(fit,SQ.output_sch)
+        return restore_eng_units(inputs,SQ.input_sch), restore_eng_units([X3_1fit; X3_2fit],SQ.output_sch)
     else
-        return inputs, fit
+        return inputs, [X3_1fit; X3_2fit]
     end
 end
 
 # convert data back to original units
 function restore_eng_units(ary::Array,sch::ML.Schema)
     info("Restoring Engineering Units")
+    println(size(ary))
     arrays = Dict()
     i = 1
     for entry in sch
@@ -110,7 +137,6 @@ function restore_eng_units(ary::Array,sch::ML.Schema)
             println("key: $(entry.first), value: $(entry.second)")
             entry_mean = mean(entry.second)
             entry_std = std(entry.second)
-            println("mean: $entry_mean, std: $entry_std")
             arrays[entry.first] = ary[i,:].*entry_std + entry_mean
             i += 1
         end
@@ -120,12 +146,13 @@ function restore_eng_units(ary::Array,sch::ML.Schema)
 end
 
 function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
-                     schema::Array=[])
+                     schema::Array=[],subsample::Int64=1)
 
     function my_splitschema(xs::ML.Schema,ks::Vector{Symbol})
         return filter((k,v) -> k ∉ ks, xs), filter((k,v) -> k ∈ ks, xs)
     end
 
+    println("Processing $fname")
     table = loadtable(fname,escapechar='"')
     input_sch = nothing
     output_sch = nothing
@@ -169,8 +196,10 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
         output_sch = schema[2]
     end
 
-    in_data = ML.featuremat(input_sch, table)
-    out_data = ML.featuremat(output_sch, table)
+    # allow subsampling data, subsample=1 means every data point is used
+    # subsample=2 means every other point is used, etc...
+    in_data = ML.featuremat(input_sch, table)[:,1:subsample:end]
+    out_data = ML.featuremat(output_sch, table)[:,1:subsample:end]
 
     if any(isnan.(in_data)) || any(isnan.(out_data))
         error("NaN in data!!!")
@@ -205,55 +234,9 @@ function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,y_pred_ar
     ex_t = Normal(ex_ty,y_pred_ary[yvar_std][ex_idx])
     ex_X3 = X3(ex_c,ex_t,global_rwd_range=(limits[yvar_mean][1],limits[yvar_mean][2]))
 
-    ax[:annotate](@sprintf("SQ:%0.2f",ex1_X3),xy=[ex_x,ex_cy],xytext=txt_loc,textcoords="figure fraction",arrowprops=Dict(:arrowstyle=>"->"))
+    ax[:annotate](@sprintf("SQ:%0.2f",ex_X3),xy=[ex_x,ex_cy],xytext=txt_loc,textcoords="figure fraction",arrowprops=Dict(:arrowstyle=>"->"))
 
 end
-
-# problem setup
-#  train_fname = "logs/transition_vary_4.csv"
-#  test_fname = "logs/transition_vary_test_4.csv"
-train_fname = "logs/transition_e_vary_reference_solver_training.csv"
-test_fname = "logs/transition_e_vary_bad_solver.csv"
-#  test_fname = "logs/transition_e_vary_mixed_solver.csv"
-log_fname = "nn_logs/transition_e_vary"
-#  log_fname = "nn_logs/transition_vary_4"
-inputs = Dict(:tprob=>"ML.Continuous")
-#  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
-#  outputs = Dict(:X3_1=>"ML.Continuous")
-outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
-
-first_run = false
-num_epoc = 1500
-if first_run
-# make model
-    SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,nn_batch_size=250)
-
-    info("Writing variable to file:")
-    jldopen("test_SQmodel.jld","w") do file
-        JLD.addrequire(file,MXNet)
-        JLD.addrequire(file,JuliaDB)
-        write(file,"train_fname",train_fname)
-        write(file,"test_fname",test_fname)
-        write(file,"input_sch",SQmodel.input_sch)
-        write(file,"output_sch",SQmodel.output_sch)
-        write(file,"inputs",inputs)
-        write(file,"outputs",outputs)
-        write(file,"range",SQmodel.range)
-    end
-else
-    SQmodel = load_network(log_fname,num_epoc,"test_SQmodel.jld")
-end
-
-# get test and make predictions
-test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
-_notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units=true)
-
-tst_in_eng = restore_eng_units(test_input,input_sch)
-tst_out_eng_ary = restore_eng_units(test_output,output_sch)
-limits = restore_eng_units(SQmodel.range,output_sch)
-tst_out_eng = tst_out_eng_ary[:X3_1]
-tst_out_eng_2 = tst_out_eng_ary[:X3_2]
-
 
 function scatter_with_conf_bnds(ax::PyCall.PyObject,x::Dict,y::Dict,xval::Symbol,yval::Symbol,yval_std::Symbol,color::Symbol)
     x_srt = sortperm(x[xval])
@@ -266,53 +249,85 @@ function scatter_with_conf_bnds(ax::PyCall.PyObject,x::Dict,y::Dict,xval::Symbol
     ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl,alpha=0.2,color=color)
 
 end
-# make figures
-if false
-    fig,ax_ary = PyPlot.subplots(2,1,sharex=false)
-    fig[:set_size_inches](8.0,8.0)
 
-    for k in [:X3_1]
-        # actual invputs/outputs vs predicted inputs/outputs
-        ax_ary[1][:scatter](tst_in_eng[:tprob],tst_out_eng_ary[k],label="true")
-        ax_ary[1][:scatter](tst_in_eng[:tprob],tst_out_eng_ary[k]+tst_out_eng_ary[:X3_2],label="model")
-        ax_ary[1][:set_xlabel]("tprob")
-        ax_ary[1][:set_ylabel](string(k))
-        ax_ary[1][:scatter](tst_in_eng[:tprob],pred_outputs[k],label="model")
-        ax_ary[1][:scatter](tst_in_eng[:tprob],pred_outputs[k]+pred_outputs[:X3_2],label="model")
+# problem setup
+#  train_fname = "logs/transition_vary_reference_solver_training.csv"
+#  test_fname = "logs/transition_vary_bad_solver.csv"
+#  train_fname = "logs/transition_e_vary_reference_solver_training.csv"
+#  test_fname = "logs/transition_e_vary_ok_solver.csv"
+train_fname = "logs/net_transition_vary_reference_solver_training.csv"
+test_fname = "logs/net_transition_vary_bad_solver.csv"
+#  test_fname = "logs/transition_e_vary_mixed_solver.csv"
+#  log_fname = "nn_logs/transition_e_vary"
+#  log_fname = "nn_logs/transition_vary"
+log_fname = "nn_logs/net_transition_vary"
+#  inputs = Dict(:tprob=>"ML.Continuous")
+inputs = Dict(:avg_degree=>"ML.Continuous")
+#  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
+#  outputs = Dict(:X3_1=>"ML.Continuous")
+outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
-        # actual output vs predicted, 45 deg line is desirable
-        ax_ary[2][:scatter](pred_outputs[k],tst_out_eng_ary[k],label="scatter")
-        ax_ary[2][:set_xlabel](string("pred ",k))
-        ax_ary[2][:set_ylabel](string("atual ",k))
+first_run = true
+num_epoc = 250
+training_subsample = 1
+if first_run
+# make model
+    SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,nn_batch_size=150,train_subsample=training_subsample)
+
+    info("Writing variable to file:")
+    jldopen(string(log_fname,"_SQmodel.jld"),"w") do file
+        JLD.addrequire(file,MXNet)
+        JLD.addrequire(file,JuliaDB)
+        write(file,"train_fname",train_fname)
+        write(file,"test_fname",test_fname)
+        write(file,"input_sch",SQmodel.input_sch)
+        write(file,"output_sch",SQmodel.output_sch)
+        write(file,"inputs",inputs)
+        write(file,"outputs",outputs)
+        write(file,"range",SQmodel.range)
     end
-    ax_ary[1][:legend]()
-    ax_ary[2][:legend]()
 else
-    fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
-    fig[:set_size_inches](8.0,6.0)
-
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,:tprob,:X3_1,:X3_2,:red)
-
-    ax_ary[:set_xlabel]("tprob")
-    ax_ary[:set_ylabel](string(:X3_1))
-    ax_ary[:axhline](limits[:X3_1][2])
-    ax_ary[:axhline](limits[:X3_1][1])
-
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,:tprob,:X3_1,:X3_2,limits,[0.3,0.7])
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,:tprob,:X3_1,:X3_2,limits,[0.65,0.5])
-    ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
-    ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
-
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,:tprob,:X3_1,:X3_2,:blue)
-    #  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],label="model",color=:blue)
-    #  ucl = pred_outputs[:X3_1][x_srt]+pred_outputs[:X3_2][x_srt]
-    #  lcl = pred_outputs[:X3_1][x_srt]-pred_outputs[:X3_2][x_srt]
-    #  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],ucl,label="model",s=0)
-    #  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],lcl,label="model",s=0)
-    #  ax_ary[:fill_between](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],ucl,alpha=0.2,color=:blue)
-    #  ax_ary[:fill_between](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],lcl,alpha=0.2,color=:blue)
-
+    SQmodel = load_network(log_fname,num_epoc,string(log_fname,"_SQmodel.jld"))
 end
+
+# get test and make predictions
+test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
+
+info("restoring limits")
+limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
+info("getting predictions")
+_notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units=true)
+
+info("restoring test data")
+tst_in_eng = restore_eng_units(test_input,input_sch)
+tst_out_eng_ary = restore_eng_units(test_output,output_sch)
+tst_out_eng = tst_out_eng_ary[:X3_1]
+tst_out_eng_2 = tst_out_eng_ary[:X3_2]
+
+# make figures
+fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
+fig[:set_size_inches](8.0,6.0)
+
+scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,:tprob,:X3_1,:X3_2,:red)
+
+ax_ary[:set_xlabel]("tprob")
+ax_ary[:set_ylabel](string(:X3_1))
+ax_ary[:axhline](limits[:X3_1][2])
+ax_ary[:axhline](limits[:X3_1][1])
+
+add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,:tprob,:X3_1,:X3_2,limits,[0.3,0.7])
+add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,:tprob,:X3_1,:X3_2,limits,[0.65,0.5])
+ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
+ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
+
+scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,:tprob,:X3_1,:X3_2,:blue)
+#  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],label="model",color=:blue)
+#  ucl = pred_outputs[:X3_1][x_srt]+pred_outputs[:X3_2][x_srt]
+#  lcl = pred_outputs[:X3_1][x_srt]-pred_outputs[:X3_2][x_srt]
+#  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],ucl,label="model",s=0)
+#  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],lcl,label="model",s=0)
+#  ax_ary[:fill_between](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],ucl,alpha=0.2,color=:blue)
+#  ax_ary[:fill_between](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],lcl,alpha=0.2,color=:blue)
 
 #  PyPlot.legend()
 show()
