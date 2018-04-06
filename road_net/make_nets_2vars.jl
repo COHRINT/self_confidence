@@ -79,17 +79,11 @@ if create_nets
     println("making training solver networks")
     make_nets(num_train_nets,fname="logs/$(fname)$(train_txt).jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],degree_bounds=train_deg_bnds,n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=train_depth,mcts_e_bounds=train_e_bnds,trans_prob_bounds=train_t_bnds,discount_fact_bounds=[0.95],net_type=train_net_type,random_seed=12345)
 
-    #  println("making test solver networks")
-    #  make_nets(250,fname="logs/$(fname)$(test_txt).jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[8],mcts_e_bounds=[10.,1000.],trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=2345)
-
     println("making test bad solver networks")
     make_nets(num_bad_nets,fname="logs/$(fname)$(bad_txt).jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],degree_bounds=bad_deg_bnds,n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=bad_depth,mcts_e_bounds=bad_e_bnds,trans_prob_bounds=bad_t_bnds,discount_fact_bounds=[0.95],net_type=bad_net_type,random_seed=345)
 #
     println("making test ok solver networks")
     make_nets(num_ok_nets,fname="logs/$(fname)$(ok_txt).jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],degree_bounds=ok_deg_bnds,n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=ok_depth,mcts_e_bounds=ok_e_bnds,trans_prob_bounds=ok_t_bnds,discount_fact_bounds=[0.95],net_type=ok_net_type,random_seed=45)
-
-    #  println("making mixed solver networks")
-    #  make_nets(750,fname="logs/$(fname)$(mixed_txt).jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[1,10],mcts_e_bounds=[10.,1300.],trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=95)
 end
 
 println("creating training data")
@@ -97,8 +91,6 @@ make_simulations = true
 if make_simulations
 
     make_training_data(data_fname="logs/$(fname)$(train_txt)",repeats=250,sim_steps=-1,dis_rwd=false)
-    #  make_training_data(data_fname="logs/$(fname)$(test_txt)",repeats=250,sim_steps=-1,dis_rwd=false)
     make_training_data(data_fname="logs/$(fname)$(bad_txt)",repeats=250,sim_steps=-1,dis_rwd=false)
     make_training_data(data_fname="logs/$(fname)$(ok_txt)",repeats=250,sim_steps=-1,dis_rwd=false)
-    #  make_training_data(data_fname="logs/$(fname)$(mixed_txt)",repeats=250,sim_steps=-1,dis_rwd=false)
 end
