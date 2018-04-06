@@ -1,5 +1,6 @@
 using LightGraphs, MetaGraphs
 using TikzPictures, TikzGraphs
+using DataStructures
 
 struct network_props
     # structure to handle network properties, these are used to train
@@ -123,24 +124,39 @@ function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     p_itr = 1
     tot_itr = 1
     max_its = 1e4
-    while (!is_connected(g) || round(mean(degree(g)))!= target_mean_degree) && tot_itr < max_its
+    round_digits = length(split(string(target_mean_degree),".")[2])
+    d_hist = Deque{Float64}()
+    while (!is_connected(g) || round(mean(degree(g)),round_digits)!= target_mean_degree) && tot_itr < max_its
         g = erdos_renyi(n,p,is_directed=is_directed,seed=net_seed)
         tot_itr += 1
         p_itr += 1
+        push!(d_hist,mean(degree(g))) #keep running history of mean degrees
         if p_itr > 100
             # we aren't getting desired degree, change p accordingly
+            p_delta = 10.^(-(log(p_itr)-2.))
             if mean(degree(g)) > target_mean_degree
-                p = p - 0.01
+                # subtract less and less off of p as iterations go up
+                p = p - p_delta
             else
-                p = p + 0.01
+                # add less and less to p as iterations go up
+                p = p + p_delta
             end
-            round(p,3)
-            #  println("Mean degree is $(mean(degree(g))), Changing p to: $p")
+            shift!(d_hist)
+            #  round(p,5)
+            println("Mean degree is $(mean(degree(g))), target is $(target_mean_degree), Changing p to: $p")
         end
 
     end
     if tot_itr >= max_its
-        error("couldn't make desired network")
+        d_hist_diff = abs.(diff([float(x) for x in d_hist]))
+        #  display(d_hist)
+            display(d_hist_diff)
+            display(unique(d_hist_diff))
+            if length(unique(d_hist_diff)) > 3
+                    # if there are "too many" unique values in history, couldn't find it
+                    # otherwise were were bouncing around the solution, and can pass on the answer
+            error("couldn't make desired network")
+        end
     end
 
     # make graph with metadata
