@@ -81,14 +81,14 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::Str
            eval_metric = mx.MSE(),
            eval_data = X3_1evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer(),mx.do_checkpoint(log_fname,frequency=2)])
+           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net1"),frequency=1)])
     info("Training X3_2")
     mx.train(X3_2net, optimizer, X3_2trainprovider,
            initializer = mx.NormalInitializer(0.0, 0.1),
            eval_metric = mx.MSE(),
            eval_data = X3_2evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer(),mx.do_checkpoint(log_fname,frequency=2)])
+           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net2"),frequency=1)])
 
     #  println(size(training_out))
     training_range = [minimum(training_out,2) maximum(training_out,2)]
@@ -202,6 +202,8 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     out_data = ML.featuremat(output_sch, table)[:,1:subsample:end]
 
     if any(isnan.(in_data)) || any(isnan.(out_data))
+        display(in_data)
+        display(out_data)
         error("NaN in data!!!")
     end
 
@@ -210,17 +212,23 @@ end
 
 function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
     # the default one doesn't work for some reason, so I'll do it by hand
-    arch, arg_params, aux_params = mx.load_checkpoint(nn_prefix,epoch)
-    model = mx.FeedForward(arch)
-    model.arg_params = arg_params
-    model.aux_params = aux_params
+    arch1, arg_params1, aux_params1 = mx.load_checkpoint(string(nn_prefix,"_net1"),epoch)
+    arch2, arg_params2, aux_params2 = mx.load_checkpoint(string(nn_prefix,"_net2"),epoch)
+
+    net1 = mx.FeedForward(arch1)
+    net1.arg_params = arg_params1
+    net1.aux_params = aux_params1
+
+    net2 = mx.FeedForward(arch2)
+    net2.arg_params = arg_params2
+    net2.aux_params = aux_params2
 
     sq_data = JLD.load(sq_fname)
     input_sch = sq_data["input_sch"]
     output_sch = sq_data["output_sch"]
     range = sq_data["range"]
 
-    SQ = SQ_model(input_sch,output_sch,model,range)
+    SQ = SQ_model(input_sch,output_sch,net1,net2,range)
     return SQ
 end
 
@@ -240,7 +248,7 @@ end
 
 function scatter_with_conf_bnds(ax::PyCall.PyObject,x::Dict,y::Dict,xval::Symbol,yval::Symbol,yval_std::Symbol,color::Symbol)
     x_srt = sortperm(x[xval])
-    ax_ary[:scatter](x[:tprob][x_srt],y[:X3_1][x_srt],label="true",color=color)
+    ax_ary[:scatter](x[xval][x_srt],y[yval][x_srt],label="true",color=color)
     t_ucl = y[yval][x_srt]+y[yval_std][x_srt]
     t_lcl = y[yval][x_srt]-y[yval_std][x_srt]
     ax_ary[:scatter](x[xval][x_srt],t_ucl,label="model",s=0)
@@ -248,6 +256,13 @@ function scatter_with_conf_bnds(ax::PyCall.PyObject,x::Dict,y::Dict,xval::Symbol
     ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_ucl,alpha=0.2,color=color)
     ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl,alpha=0.2,color=color)
 
+end
+function make_label_from_keys(d::Dict)
+    z = ""
+    for x in collect(keys(d))
+        z = string(z,x)
+    end
+    return z
 end
 
 # problem setup
@@ -260,14 +275,14 @@ test_fname = "logs/net_transition_vary_bad_solver.csv"
 #  test_fname = "logs/transition_e_vary_mixed_solver.csv"
 #  log_fname = "nn_logs/transition_e_vary"
 #  log_fname = "nn_logs/transition_vary"
-log_fname = "nn_logs/net_transition_vary"
 #  inputs = Dict(:tprob=>"ML.Continuous")
-inputs = Dict(:avg_degree=>"ML.Continuous")
-#  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
-#  outputs = Dict(:X3_1=>"ML.Continuous")
+#  inputs = Dict(:avg_degree=>"ML.Continuous")
+inputs = Dict(:tprob=>"ML.Continuous",:avg_degree=>"ML.Continuous")
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
-first_run = true
+log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"
+
+first_run = false
 num_epoc = 250
 training_subsample = 1
 if first_run
@@ -301,39 +316,57 @@ _notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units
 info("restoring test data")
 tst_in_eng = restore_eng_units(test_input,input_sch)
 tst_out_eng_ary = restore_eng_units(test_output,output_sch)
-tst_out_eng = tst_out_eng_ary[:X3_1]
-tst_out_eng_2 = tst_out_eng_ary[:X3_2]
+#  tst_out_eng = tst_out_eng_ary[:X3_1]
+#  tst_out_eng_2 = tst_out_eng_ary[:X3_2]
 
 # make figures
-fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
-fig[:set_size_inches](8.0,6.0)
 
-scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,:tprob,:X3_1,:X3_2,:red)
+if length(inputs) == 1
+    fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
+    fig[:set_size_inches](8.0,6.0)
 
-ax_ary[:set_xlabel]("tprob")
-ax_ary[:set_ylabel](string(:X3_1))
-ax_ary[:axhline](limits[:X3_1][2])
-ax_ary[:axhline](limits[:X3_1][1])
+    i1 = collect(keys(inputs))[1]
 
-add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,:tprob,:X3_1,:X3_2,limits,[0.3,0.7])
-add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,:tprob,:X3_1,:X3_2,limits,[0.65,0.5])
-ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
-ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
+    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red)
 
-scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,:tprob,:X3_1,:X3_2,:blue)
-#  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],label="model",color=:blue)
-#  ucl = pred_outputs[:X3_1][x_srt]+pred_outputs[:X3_2][x_srt]
-#  lcl = pred_outputs[:X3_1][x_srt]-pred_outputs[:X3_2][x_srt]
-#  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],ucl,label="model",s=0)
-#  ax_ary[:scatter](tst_in_eng[:tprob][x_srt],lcl,label="model",s=0)
-#  ax_ary[:fill_between](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],ucl,alpha=0.2,color=:blue)
-#  ax_ary[:fill_between](tst_in_eng[:tprob][x_srt],pred_outputs[:X3_1][x_srt],lcl,alpha=0.2,color=:blue)
+    ax_ary[:set_xlabel](string(i1))
+    ax_ary[:set_ylabel](string(:X3_1))
+    ax_ary[:axhline](limits[:X3_1][2])
+    ax_ary[:axhline](limits[:X3_1][1])
+
+    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,i1,:X3_1,:X3_2,limits,[0.3,0.7])
+    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,i1,:X3_1,:X3_2,limits,[0.65,0.5])
+    ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
+    ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
+
+    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue)
+elseif length(inputs) == 2
+    # do 2d stuff
+    i1 = collect(keys(inputs))[1]
+    i2 = collect(keys(inputs))[2]
+
+    scatter3D(tst_in_eng[i1],tst_in_eng[i2],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
+    scatter3D(tst_in_eng[i1],tst_in_eng[i2],pred_outputs[:X3_1],color=:blue,alpha=0.2)
+
+    #  t_ucl = y[yval][x_srt]+y[yval_std][x_srt]
+    #  t_lcl = y[yval][x_srt]-y[yval_std][x_srt]
+    #  ax_ary[:scatter](x[xval][x_srt],t_ucl,label="model",s=0)
+    #  ax_ary[:scatter](x[xval][x_srt],t_lcl,label="model",s=0)
+    #  ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_ucl,alpha=0.2,color=color)
+    #  ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl,alpha=0.2,color=color)
+
+    #  ax_ary[:set_xlabel](string(i1))
+    #  ax_ary[:set_ylabel](string(i2))
+    #  ax_ary[:set_zlabel](string(:X3_1))
+    #  ax_ary[:axhline](limits[:X3_1][2])
+    #  ax_ary[:axhline](limits[:X3_1][1])
+else
+    error("can't support more than 2 inputs yet")
+end
 
 #  PyPlot.legend()
 show()
 # 3d scatter
-#  scatter3d(tst_in_eng[:tprob],tst_in_eng[:e_mcts],tst_out_eng,label="test",xlabel="tprob",ylabel="e",zlabel="exp rwd")
-#  scatter3d!(tst_in_eng[:tprob],tst_in_eng[:e_mcts],pred_outputs[:X3_1])
 
 #  plot(p1,p3,p4,p5,size=(1200,600))
 #  plot(p1,size=(900,600))
