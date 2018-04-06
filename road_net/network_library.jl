@@ -143,15 +143,14 @@ function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
             end
             shift!(d_hist)
             #  round(p,5)
-            println("Mean degree is $(mean(degree(g))), target is $(target_mean_degree), Changing p to: $p")
+            #  println("Mean degree is $(mean(degree(g))), target is $(target_mean_degree), Changing p to: $p")
         end
-
     end
     if tot_itr >= max_its
         d_hist_diff = abs.(diff([float(x) for x in d_hist]))
         #  display(d_hist)
-            display(d_hist_diff)
-            display(unique(d_hist_diff))
+            #  display(d_hist_diff)
+            #  display(unique(d_hist_diff))
             if length(unique(d_hist_diff)) > 3
                     # if there are "too many" unique values in history, couldn't find it
                     # otherwise were were bouncing around the solution, and can pass on the answer
