@@ -52,21 +52,21 @@ elseif fname == "transition_e_vary"
     bad_deg_bnds = [4.]
     bad_net_type = :original
 elseif fname == "net_transition_vary"
-    num_train_nets = 750
+    num_train_nets = 7
     train_t_bnds = [0.0,1.0]
     train_e_bnds = [1000.]
     train_depth = [8]
     train_deg_bnds = [3.,8.]
     train_net_type = :random
 
-    num_ok_nets = 250
+    num_ok_nets = 2
     ok_t_bnds = [0.0,1.0]
     ok_e_bnds = [1000.]
     ok_depth = [3]
     ok_deg_bnds = [3.,8.]
     ok_net_type = :random
 
-    num_bad_nets = 250
+    num_bad_nets = 2
     bad_t_bnds = [0.0,1.0]
     bad_e_bnds = [1000.]
     bad_depth = [1]
