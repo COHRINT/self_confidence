@@ -81,14 +81,14 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::Str
            eval_metric = mx.MSE(),
            eval_data = X3_1evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net1"),frequency=1)])
+           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net1"),frequency=nn_epoc)])
     info("Training X3_2")
     mx.train(X3_2net, optimizer, X3_2trainprovider,
            initializer = mx.NormalInitializer(0.0, 0.1),
            eval_metric = mx.MSE(),
            eval_data = X3_2evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net2"),frequency=1)])
+           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net2"),frequency=nn_epoc)])
 
     #  println(size(training_out))
     training_range = [minimum(training_out,2) maximum(training_out,2)]
@@ -282,7 +282,7 @@ outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"
 
-first_run = false
+first_run = true
 num_epoc = 250
 training_subsample = 1
 if first_run
