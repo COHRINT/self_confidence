@@ -81,14 +81,14 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::Str
            eval_metric = mx.MSE(),
            eval_data = X3_1evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net1"),frequency=1)])
+           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net1"),frequency=nn_epoc)])
     info("Training X3_2")
     mx.train(X3_2net, optimizer, X3_2trainprovider,
            initializer = mx.NormalInitializer(0.0, 0.1),
            eval_metric = mx.MSE(),
            eval_data = X3_2evalprovider,
            n_epoch = nn_epoc,
-           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net2"),frequency=1)])
+           callbacks = [mx.speedometer(),mx.do_checkpoint(string(log_fname,"_net2"),frequency=nn_epoc)])
 
     #  println(size(training_out))
     training_range = [minimum(training_out,2) maximum(training_out,2)]
@@ -210,28 +210,6 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     return in_data, out_data, table, input_sch, output_sch
 end
 
-function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
-    # the default one doesn't work for some reason, so I'll do it by hand
-    arch1, arg_params1, aux_params1 = mx.load_checkpoint(string(nn_prefix,"_net1"),epoch)
-    arch2, arg_params2, aux_params2 = mx.load_checkpoint(string(nn_prefix,"_net2"),epoch)
-
-    net1 = mx.FeedForward(arch1)
-    net1.arg_params = arg_params1
-    net1.aux_params = aux_params1
-
-    net2 = mx.FeedForward(arch2)
-    net2.arg_params = arg_params2
-    net2.aux_params = aux_params2
-
-    sq_data = JLD.load(sq_fname)
-    input_sch = sq_data["input_sch"]
-    output_sch = sq_data["output_sch"]
-    range = sq_data["range"]
-
-    SQ = SQ_model(input_sch,output_sch,net1,net2,range)
-    return SQ
-end
-
 function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,y_pred_ary::Dict,idx::Int64,xvar::Symbol,yvar_mean::Symbol,yvar_std::Symbol,limits::Dict,txt_loc::Array)
     x_srt = sortperm(tst_in_eng[xvar])
     ex_idx = x_srt[idx]
@@ -277,96 +255,25 @@ test_fname = "logs/net_transition_vary_bad_solver.csv"
 #  log_fname = "nn_logs/transition_vary"
 #  inputs = Dict(:tprob=>"ML.Continuous")
 #  inputs = Dict(:avg_degree=>"ML.Continuous")
-inputs = Dict(:tprob=>"ML.Continuous",:avg_degree=>"ML.Continuous")
+inputs = Dict(:tprob=>"ML.Continuous",:E=>"ML.Continuous")
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"
 
-first_run = false
 num_epoc = 250
 training_subsample = 1
-if first_run
 # make model
-    SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,nn_batch_size=150,train_subsample=training_subsample)
+SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,nn_batch_size=150,train_subsample=training_subsample)
 
-    info("Writing variable to file:")
-    jldopen(string(log_fname,"_SQmodel.jld"),"w") do file
-        JLD.addrequire(file,MXNet)
-        JLD.addrequire(file,JuliaDB)
-        write(file,"train_fname",train_fname)
-        write(file,"test_fname",test_fname)
-        write(file,"input_sch",SQmodel.input_sch)
-        write(file,"output_sch",SQmodel.output_sch)
-        write(file,"inputs",inputs)
-        write(file,"outputs",outputs)
-        write(file,"range",SQmodel.range)
-    end
-else
-    SQmodel = load_network(log_fname,num_epoc,string(log_fname,"_SQmodel.jld"))
+info("Writing variable to file:")
+jldopen(string(log_fname,"_SQmodel.jld"),"w") do file
+    JLD.addrequire(file,MXNet)
+    JLD.addrequire(file,JuliaDB)
+    write(file,"train_fname",train_fname)
+    write(file,"test_fname",test_fname)
+    write(file,"input_sch",SQmodel.input_sch)
+    write(file,"output_sch",SQmodel.output_sch)
+    write(file,"inputs",inputs)
+    write(file,"outputs",outputs)
+    write(file,"range",SQmodel.range)
 end
-
-# get test and make predictions
-test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
-
-info("restoring limits")
-limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
-info("getting predictions")
-_notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units=true)
-
-info("restoring test data")
-tst_in_eng = restore_eng_units(test_input,input_sch)
-tst_out_eng_ary = restore_eng_units(test_output,output_sch)
-#  tst_out_eng = tst_out_eng_ary[:X3_1]
-#  tst_out_eng_2 = tst_out_eng_ary[:X3_2]
-
-# make figures
-
-if length(inputs) == 1
-    fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
-    fig[:set_size_inches](8.0,6.0)
-
-    i1 = collect(keys(inputs))[1]
-
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red)
-
-    ax_ary[:set_xlabel](string(i1))
-    ax_ary[:set_ylabel](string(:X3_1))
-    ax_ary[:axhline](limits[:X3_1][2])
-    ax_ary[:axhline](limits[:X3_1][1])
-
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,i1,:X3_1,:X3_2,limits,[0.3,0.7])
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,i1,:X3_1,:X3_2,limits,[0.65,0.5])
-    ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
-    ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
-
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue)
-elseif length(inputs) == 2
-    # do 2d stuff
-    i1 = collect(keys(inputs))[1]
-    i2 = collect(keys(inputs))[2]
-
-    scatter3D(tst_in_eng[i1],tst_in_eng[i2],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
-    scatter3D(tst_in_eng[i1],tst_in_eng[i2],pred_outputs[:X3_1],color=:blue,alpha=0.2)
-
-    #  t_ucl = y[yval][x_srt]+y[yval_std][x_srt]
-    #  t_lcl = y[yval][x_srt]-y[yval_std][x_srt]
-    #  ax_ary[:scatter](x[xval][x_srt],t_ucl,label="model",s=0)
-    #  ax_ary[:scatter](x[xval][x_srt],t_lcl,label="model",s=0)
-    #  ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_ucl,alpha=0.2,color=color)
-    #  ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl,alpha=0.2,color=color)
-
-    #  ax_ary[:set_xlabel](string(i1))
-    #  ax_ary[:set_ylabel](string(i2))
-    #  ax_ary[:set_zlabel](string(:X3_1))
-    #  ax_ary[:axhline](limits[:X3_1][2])
-    #  ax_ary[:axhline](limits[:X3_1][1])
-else
-    error("can't support more than 2 inputs yet")
-end
-
-#  PyPlot.legend()
-show()
-# 3d scatter
-
-#  plot(p1,p3,p4,p5,size=(1200,600))
-#  plot(p1,size=(900,600))
