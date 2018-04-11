@@ -255,7 +255,7 @@ test_fname = "logs/net_transition_vary_bad_solver.csv"
 #  log_fname = "nn_logs/transition_vary"
 #  inputs = Dict(:tprob=>"ML.Continuous")
 #  inputs = Dict(:avg_degree=>"ML.Continuous")
-inputs = Dict(:tprob=>"ML.Continuous",:avg_degree=>"ML.Continuous")
+inputs = Dict(:tprob=>"ML.Continuous",:E=>"ML.Continuous")
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"

@@ -1,5 +1,6 @@
 function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
     # the default one doesn't work for some reason, so I'll do it by hand
+    println(nn_prefix)
     arch1, arg_params1, aux_params1 = mx.load_checkpoint(string(nn_prefix,"_net1"),epoch)
     arch2, arg_params2, aux_params2 = mx.load_checkpoint(string(nn_prefix,"_net2"),epoch)
 
@@ -26,29 +27,39 @@ function make_label_from_keys(d::Dict)
     end
     return z
 end
-searchdir(path,key) = filter(x->contains(x,key),readdir(path))
+function searchdir(path,key1)
+    # list of files matching key1
+    filt_list = filter(x->contains(x,key1),readdir(path))
+
+    return filt_list
+end
+function searchdir(path,key1,key2)
+    # list of files matching key1
+    filt_list = searchdir(path,key1)
+
+    # subset of that list that contains key2
+    filt_list2 = filter(x->contains(x,key2),filt_list)
+
+    return filt_list2
+end
 
 # problem setup
-#  train_fname = "logs/transition_vary_reference_solver_training.csv"
-#  test_fname = "logs/transition_vary_bad_solver.csv"
-#  train_fname = "logs/transition_e_vary_reference_solver_training.csv"
-#  test_fname = "logs/transition_e_vary_ok_solver.csv"
-train_fname = "logs/net_transition_vary_reference_solver_training.csv"
-test_fname = "logs/net_transition_vary_bad_solver.csv"
-#  test_fname = "logs/transition_e_vary_mixed_solver.csv"
-#  log_fname = "nn_logs/transition_e_vary"
-#  log_fname = "nn_logs/transition_vary"
-#  inputs = Dict(:tprob=>"ML.Continuous")
-#  inputs = Dict(:avg_degree=>"ML.Continuous")
-inputs = Dict(:tprob=>"ML.Continuous",:avg_degree=>"ML.Continuous")
+net_type = "net_transition_vary"
+
+train_fname = "logs/$(net_type)_reference_solver_training.csv"
+test_fname = "logs/$(net_type)_bad_solver.csv"
+
+inputs = Dict(:tprob=>"ML.Continuous",:E=>"ML.Continuous")
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
-log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"
+log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
+log_loc = "nn_logs/"
 
-log_files = searchdir("nn_logs/",log_fname)
+param_files = searchdir(log_loc,log_fname,".params")
 
+num_epocs = parse(split(match(r"-\d+",param_files[1]).match,"-")[2])
 
-SQmodel = load_network(log_fname,num_epoc,string(log_fname,"_SQmodel.jld"))
+SQmodel = load_network(string(log_loc,log_fname),num_epocs,string(log_loc,log_fname,"_SQmodel.jld"))
 
 # get test and make predictions
 test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
@@ -67,24 +78,24 @@ tst_out_eng_ary = restore_eng_units(test_output,output_sch)
 # make figures
 
 if length(inputs) == 1
-    fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
-    fig[:set_size_inches](8.0,6.0)
+ fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
+ fig[:set_size_inches](8.0,6.0)
 
-    i1 = collect(keys(inputs))[1]
+ i1 = collect(keys(inputs))[1]
 
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red)
+ scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red)
 
-    ax_ary[:set_xlabel](string(i1))
-    ax_ary[:set_ylabel](string(:X3_1))
-    ax_ary[:axhline](limits[:X3_1][2])
-    ax_ary[:axhline](limits[:X3_1][1])
+ ax_ary[:set_xlabel](string(i1))
+ ax_ary[:set_ylabel](string(:X3_1))
+ ax_ary[:axhline](limits[:X3_1][2])
+ ax_ary[:axhline](limits[:X3_1][1])
 
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,i1,:X3_1,:X3_2,limits,[0.3,0.7])
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,i1,:X3_1,:X3_2,limits,[0.65,0.5])
-    ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
-    ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
+ add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,i1,:X3_1,:X3_2,limits,[0.3,0.7])
+ add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,i1,:X3_1,:X3_2,limits,[0.65,0.5])
+ ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
+ ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
 
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue)
+ scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue)
 elseif length(inputs) == 2
     # do 2d stuff
     i1 = collect(keys(inputs))[1]
@@ -106,7 +117,7 @@ elseif length(inputs) == 2
     #  ax_ary[:axhline](limits[:X3_1][2])
     #  ax_ary[:axhline](limits[:X3_1][1])
 else
-    error("can't support more than 2 inputs yet")
+ error("can't support more than 2 inputs yet")
 end
 
 #  PyPlot.legend()
