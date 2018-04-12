@@ -1,3 +1,7 @@
+using PyPlot
+using StatPlots
+include("make_SQ_model.jl")
+
 function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
     # the default one doesn't work for some reason, so I'll do it by hand
     println(nn_prefix)
@@ -49,7 +53,7 @@ net_type = "net_transition_vary"
 train_fname = "logs/$(net_type)_reference_solver_training.csv"
 test_fname = "logs/$(net_type)_bad_solver.csv"
 
-inputs = Dict(:tprob=>"ML.Continuous",:E=>"ML.Continuous")
+inputs = Dict(:tprob=>"ML.Continuous",:deg_variance=>"ML.Continuous")
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
@@ -63,6 +67,8 @@ SQmodel = load_network(string(log_loc,log_fname),num_epocs,string(log_loc,log_fn
 
 # get test and make predictions
 test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
+
+data_mat = ML.featuremat(merge(input_sch,output_sch),test_table)
 
 info("restoring limits")
 limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
@@ -96,13 +102,15 @@ if length(inputs) == 1
  ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
 
  scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue)
-elseif length(inputs) == 2
-    # do 2d stuff
+elseif length(inputs) > 1
+    # make correlation plots
     i1 = collect(keys(inputs))[1]
     i2 = collect(keys(inputs))[2]
 
-    scatter3D(tst_in_eng[i1],tst_in_eng[i2],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
-    scatter3D(tst_in_eng[i1],tst_in_eng[i2],pred_outputs[:X3_1],color=:blue,alpha=0.2)
+    corrplot(data_mat)
+
+    #  scatter3D(tst_in_eng[i1],tst_in_eng[i2],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
+    #  scatter3D(tst_in_eng[i1],tst_in_eng[i2],pred_outputs[:X3_1],color=:blue,alpha=0.2)
 
     #  t_ucl = y[yval][x_srt]+y[yval_std][x_srt]
     #  t_lcl = y[yval][x_srt]-y[yval_std][x_srt]
@@ -121,7 +129,7 @@ else
 end
 
 #  PyPlot.legend()
-show()
+#  show()
 # 3d scatter
 
 #  plot(p1,p3,p4,p5,size=(1200,600))

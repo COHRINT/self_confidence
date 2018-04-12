@@ -243,37 +243,39 @@ function make_label_from_keys(d::Dict)
     return z
 end
 
-# problem setup
-#  train_fname = "logs/transition_vary_reference_solver_training.csv"
-#  test_fname = "logs/transition_vary_bad_solver.csv"
-#  train_fname = "logs/transition_e_vary_reference_solver_training.csv"
-#  test_fname = "logs/transition_e_vary_ok_solver.csv"
-train_fname = "logs/net_transition_vary_reference_solver_training.csv"
-test_fname = "logs/net_transition_vary_bad_solver.csv"
-#  test_fname = "logs/transition_e_vary_mixed_solver.csv"
-#  log_fname = "nn_logs/transition_e_vary"
-#  log_fname = "nn_logs/transition_vary"
-#  inputs = Dict(:tprob=>"ML.Continuous")
-#  inputs = Dict(:avg_degree=>"ML.Continuous")
-inputs = Dict(:tprob=>"ML.Continuous",:E=>"ML.Continuous")
-outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
+function main()
+    # problem setup
+    #  train_fname = "logs/transition_vary_reference_solver_training.csv"
+    #  test_fname = "logs/transition_vary_bad_solver.csv"
+    #  train_fname = "logs/transition_e_vary_reference_solver_training.csv"
+    #  test_fname = "logs/transition_e_vary_ok_solver.csv"
+    train_fname = "logs/net_transition_vary_reference_solver_training.csv"
+    test_fname = "logs/net_transition_vary_bad_solver.csv"
+    #  test_fname = "logs/transition_e_vary_mixed_solver.csv"
+    #  log_fname = "nn_logs/transition_e_vary"
+    #  log_fname = "nn_logs/transition_vary"
+    #  inputs = Dict(:tprob=>"ML.Continuous")
+    #  inputs = Dict(:avg_degree=>"ML.Continuous")
+    inputs = Dict(:tprob=>"ML.Continuous",:deg_variance=>"ML.Continuous")
+    outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
-log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"
+    log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"
 
-num_epoc = 250
-training_subsample = 1
-# make model
-SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,nn_batch_size=150,train_subsample=training_subsample)
+    num_epoc = 250
+    training_subsample = 1
+    # make model
+    SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,nn_batch_size=150,train_subsample=training_subsample)
 
-info("Writing variable to file:")
-jldopen(string(log_fname,"_SQmodel.jld"),"w") do file
-    JLD.addrequire(file,MXNet)
-    JLD.addrequire(file,JuliaDB)
-    write(file,"train_fname",train_fname)
-    write(file,"test_fname",test_fname)
-    write(file,"input_sch",SQmodel.input_sch)
-    write(file,"output_sch",SQmodel.output_sch)
-    write(file,"inputs",inputs)
-    write(file,"outputs",outputs)
-    write(file,"range",SQmodel.range)
+    info("Writing variable to file:")
+    jldopen(string(log_fname,"_SQmodel.jld"),"w") do file
+        JLD.addrequire(file,MXNet)
+        JLD.addrequire(file,JuliaDB)
+        write(file,"train_fname",train_fname)
+        write(file,"test_fname",test_fname)
+        write(file,"input_sch",SQmodel.input_sch)
+        write(file,"output_sch",SQmodel.output_sch)
+        write(file,"inputs",inputs)
+        write(file,"outputs",outputs)
+        write(file,"range",SQmodel.range)
+    end
 end
