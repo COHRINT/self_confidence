@@ -244,22 +244,15 @@ function make_label_from_keys(d::Dict)
 end
 
 function main()
-    # problem setup
-    #  train_fname = "logs/transition_vary_reference_solver_training.csv"
-    #  test_fname = "logs/transition_vary_bad_solver.csv"
-    #  train_fname = "logs/transition_e_vary_reference_solver_training.csv"
-    #  test_fname = "logs/transition_e_vary_ok_solver.csv"
-    train_fname = "logs/net_transition_vary_reference_solver_training.csv"
-    test_fname = "logs/net_transition_vary_bad_solver.csv"
-    #  test_fname = "logs/transition_e_vary_mixed_solver.csv"
-    #  log_fname = "nn_logs/transition_e_vary"
-    #  log_fname = "nn_logs/transition_vary"
-    #  inputs = Dict(:tprob=>"ML.Continuous")
-    #  inputs = Dict(:avg_degree=>"ML.Continuous")
-    inputs = Dict(:tprob=>"ML.Continuous",:deg_variance=>"ML.Continuous")
+    net_type = "net_transition_discount_vary"
+
+    train_fname = "logs/$(net_type)_reference_solver_training.csv"
+    test_fname = "logs/$(net_type)_bad_solver.csv"
+
+    inputs = Dict(:tprob=>"ML.Continuous",:discount=>"ML.Continuous")
     outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
-    log_fname = "nn_logs/net_transition_vary_$(make_label_from_keys(inputs))"
+    log_fname = "nn_logs/$(net_type)_$(make_label_from_keys(inputs))"
 
     num_epoc = 250
     training_subsample = 1

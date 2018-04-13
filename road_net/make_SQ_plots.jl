@@ -1,5 +1,4 @@
 using PyPlot
-using StatPlots
 include("make_SQ_model.jl")
 
 function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
@@ -48,12 +47,12 @@ function searchdir(path,key1,key2)
 end
 
 # problem setup
-net_type = "net_transition_vary"
+net_type = "net_transition_discount_vary"
 
 train_fname = "logs/$(net_type)_reference_solver_training.csv"
 test_fname = "logs/$(net_type)_bad_solver.csv"
 
-inputs = Dict(:tprob=>"ML.Continuous",:deg_variance=>"ML.Continuous")
+inputs = Dict(:tprob=>"ML.Continuous",:discount=>"ML.Continuous")
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
@@ -107,10 +106,10 @@ elseif length(inputs) > 1
     i1 = collect(keys(inputs))[1]
     i2 = collect(keys(inputs))[2]
 
-    corrplot(data_mat)
+    #  corrplot(data_mat)
 
-    #  scatter3D(tst_in_eng[i1],tst_in_eng[i2],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
-    #  scatter3D(tst_in_eng[i1],tst_in_eng[i2],pred_outputs[:X3_1],color=:blue,alpha=0.2)
+    scatter3D(tst_in_eng[i1],tst_in_eng[i2],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
+    scatter3D(tst_in_eng[i1],tst_in_eng[i2],pred_outputs[:X3_1],color=:blue,alpha=0.2)
 
     #  t_ucl = y[yval][x_srt]+y[yval_std][x_srt]
     #  t_lcl = y[yval][x_srt]-y[yval_std][x_srt]
@@ -129,7 +128,7 @@ else
 end
 
 #  PyPlot.legend()
-#  show()
+show()
 # 3d scatter
 
 #  plot(p1,p3,p4,p5,size=(1200,600))

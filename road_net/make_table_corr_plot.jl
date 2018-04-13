@@ -1,9 +1,9 @@
 using StatPlots
 using CSV
 
-type_list = [Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64]
+#  type_list = [Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64]
 #  table = CSV.read("logs/test_corrplot.csv")
-table = CSV.read("logs/net_transition_vary_reference_solver_training.csv")
+table = CSV.read("logs/net_transition_discount_vary_reference_solver_training.csv")
 #  for c in names(table)
     #  println(typeof(table[c]))
 #  end
