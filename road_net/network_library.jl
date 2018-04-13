@@ -107,17 +107,19 @@ function medium_roadnet(;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,sens
     return mg
 end
 ###### add other road networks here.....
-function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,
+function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,
                       sensor_rwd::Float64=-1.,net_seed::Int64=0,
-                      target_mean_degree::Float64=5.0,is_directed::Bool=false,
-                      exit_nodes::Array{Int64}=empty!([1]))::MetaGraph
-    # n: total nodes
+                      target_mean_degree::Float64=5.0,approx_E::Int64=2*n,is_directed::Bool=false,
+                      exit_nodes::Array{Int64}=empty!([1]),method::Symbol=:erdos_n_p)::MetaGraph
+    # N: total nodes
     # exit_rwd: how much reward at exit
     # caught_rwd: how much reward when caught
     # sensor_rwd: baseline reward, incentive to keep moving instead of staying put
     # net_seed: random seed to be able to regenerate a network
-    # target_mean_degree: desired average degree to constrain the action space
+    # target_mean_degree: desired average degree to constrain the action space, if using method=erdos_n_p
+    # approx_E: approximate number of edges to be used if using method=:erdos_n_e (some randomness added here)
     # is_directed: whether graph is directed or not
+    # method: specifies using erdos_n_p or erdos_n_e
 
     g = Graph()
     p = 0.5
@@ -126,25 +128,35 @@ function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     max_its = 1e4
     round_digits = length(split(string(target_mean_degree),".")[2])
     d_hist = Deque{Float64}()
-    while (!is_connected(g) || round(mean(degree(g)),round_digits)!= target_mean_degree) && tot_itr < max_its
-        g = erdos_renyi(n,p,is_directed=is_directed,seed=net_seed)
-        tot_itr += 1
-        p_itr += 1
-        push!(d_hist,mean(degree(g))) #keep running history of mean degrees
-        if p_itr > 100
-            # we aren't getting desired degree, change p accordingly
-            p_delta = 10.^(-(log(p_itr)-2.))
-            if mean(degree(g)) > target_mean_degree
-                # subtract less and less off of p as iterations go up
-                p = p - p_delta
-            else
-                # add less and less to p as iterations go up
-                p = p + p_delta
+    if method == :erdos_n_p
+        while (!is_connected(g) || round(mean(degree(g)),round_digits)!= target_mean_degree) && tot_itr < max_its
+            g = erdos_renyi(N,p,is_directed=is_directed,seed=net_seed)
+            tot_itr += 1
+            p_itr += 1
+            push!(d_hist,mean(degree(g))) #keep running history of mean degrees
+            if p_itr > 100
+                # we aren't getting desired degree, change p accordingly
+                p_delta = 10.^(-(log(p_itr)-2.))
+                if mean(degree(g)) > target_mean_degree
+                    # subtract less and less off of p as iterations go up
+                    p = p - p_delta
+                else
+                    # add less and less to p as iterations go up
+                    p = p + p_delta
+                end
+                shift!(d_hist)
+                #  round(p,5)
+                #  println("Mean degree is $(mean(degree(g))), target is $(target_mean_degree), Changing p to: $p")
             end
-            shift!(d_hist)
-            #  round(p,5)
-            #  println("Mean degree is $(mean(degree(g))), target is $(target_mean_degree), Changing p to: $p")
         end
+    elseif method == :erdos_n_e
+        while (!is_connected(g)) && tot_itr < max_its
+            E = Int(round(approx_E + randn()/10*approx_E))
+            g = erdos_renyi(N,E,is_directed=is_directed,seed=net_seed)
+            net_seed += 1
+        end
+    else
+        error("DO NOT SUPPORT THAT METHOD YET")
     end
     if tot_itr >= max_its
         d_hist_diff = abs.(diff([float(x) for x in d_hist]))
@@ -161,7 +173,7 @@ function rand_network(n::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     # make graph with metadata
     mg = MetaGraph(g)
     set_prop!(mg,:POMDPgraph,true) # this indicates that we created this graph with POMDP structure (as defined by me)
-    set_prop!(mg,:description, "automatically generated random network with n=$n, and p=$p, and targeted average degree=$target_mean_degree")
+    set_prop!(mg,:description, "automatically generated random network with n=$N, using method: $(string(method))")
     set_prop!(mg,:reward_dict, Dict([(:exit,exit_rwd),(:caught,caught_rwd),(:sensor,sensor_rwd)]))
     set_prop!(mg,:exit_nodes,exit_nodes)
 

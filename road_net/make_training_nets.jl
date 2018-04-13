@@ -70,8 +70,8 @@ function make_nets(training_set_size::Int64;exit_rwd_bounds::Array{Float64}=[200
 
             if net_type == :random
                 g = rand_network(n_ary[i],exit_rwd=exit_rwd_ary[i],caught_rwd=caught_rwd_ary[i],
-                                 sensor_rwd=sensor_rwd_ary[i],net_seed=seed_list[i],
-                                 exit_nodes=[8],target_mean_degree=degree_ary[i])
+                                 sensor_rwd=sensor_rwd_ary[i],net_seed=seed_list[i],approx_E=2*n_ary[i],
+                                 exit_nodes=[8],target_mean_degree=degree_ary[i],method=:erdos_n_e)
             elseif net_type == :original
                 g = original_roadnet(exit_rwd=exit_rwd_ary[i],caught_rwd=caught_rwd_ary[i],sensor_rwd=sensor_rwd_ary[i])
             else
