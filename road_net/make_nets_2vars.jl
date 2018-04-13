@@ -4,7 +4,7 @@
 @everywhere include("make_training_data_SQ.jl")
 @everywhere include("send_mail.jl")
 
-fname = "net_transition_vary2"
+fname = "net_transition_discount_vary"
 train_txt = "_reference_solver_training"
 test_txt = "_reference_solver_test"
 bad_txt = "_bad_solver"
@@ -129,7 +129,7 @@ elseif fname == "net_transition_vary"
     bad_caught_rwd_bnds = [-2000.]
     bad_mcts_bnds = [500]
 
-elseif fname == "net_transition_vary2"
+elseif fname == "net_transition_discount_vary"
     num_train_nets = 750
     train_t_bnds = [0.6,1.0]
     train_e_bnds = [1000.]
@@ -173,10 +173,10 @@ elseif fname == "something else"
     #keeping empty for now
 end
 
-create_nets= true
+create_nets= false
 if create_nets
     println("making training solver networks")
-    make_nets(num_train_nets,fname="logs/$(fname)$(train_txt).jld",exit_rwd_bounds=training_rwd_bnds,sensor_rwd_bounds=training_sense_rwd_bnds,caught_rwd_bounds=training_caught_rwd_bnds,degree_bounds=train_deg_bnds,n_bounds=train_n_bnds,mcts_its_bounds=training_mcts_bnds,mcts_depth_bounds=train_depth,mcts_e_bounds=train_e_bnds,trans_prob_bounds=train_t_bnds,discount_fact_bounds=train_d_bnds,net_type=train_net_type,random_seed=12345)
+    make_nets(num_train_nets,fname="logs/$(fname)$(train_txt).jld",exit_rwd_bounds=training_exit_rwd_bnds,sensor_rwd_bounds=training_sense_rwd_bnds,caught_rwd_bounds=training_caught_rwd_bnds,degree_bounds=train_deg_bnds,n_bounds=train_n_bnds,mcts_its_bounds=training_mcts_bnds,mcts_depth_bounds=train_depth,mcts_e_bounds=train_e_bnds,trans_prob_bounds=train_t_bnds,discount_fact_bounds=train_d_bnds,net_type=train_net_type,random_seed=12345)
 
     println("making test bad solver networks")
     make_nets(num_bad_nets,fname="logs/$(fname)$(bad_txt).jld",exit_rwd_bounds=bad_exit_rwd_bnds,sensor_rwd_bounds=bad_sense_rwd_bnds,caught_rwd_bounds=bad_caught_rwd_bnds,degree_bounds=bad_deg_bnds,n_bounds=bad_n_bnds,mcts_its_bounds=bad_mcts_bnds,mcts_depth_bounds=bad_depth,mcts_e_bounds=bad_e_bnds,trans_prob_bounds=bad_t_bnds,discount_fact_bounds=bad_d_bnds,net_type=bad_net_type,random_seed=345)
