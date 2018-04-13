@@ -174,6 +174,10 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
     i = 0
     for problem in problem_dict
         i += 1
+        display(problem_dict)
+        println()
+        display(problem)
+        println()
         net_num = problem[1]
         problem = problem[2]
         if :error in keys(problem)

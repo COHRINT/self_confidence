@@ -173,7 +173,7 @@ elseif fname == "something else"
     #keeping empty for now
 end
 
-create_nets= false
+create_nets= true
 if create_nets
     println("making training solver networks")
     make_nets(num_train_nets,fname="logs/$(fname)$(train_txt).jld",exit_rwd_bounds=training_exit_rwd_bnds,sensor_rwd_bounds=training_sense_rwd_bnds,caught_rwd_bounds=training_caught_rwd_bnds,degree_bounds=train_deg_bnds,n_bounds=train_n_bnds,mcts_its_bounds=training_mcts_bnds,mcts_depth_bounds=train_depth,mcts_e_bounds=train_e_bnds,trans_prob_bounds=train_t_bnds,discount_fact_bounds=train_d_bnds,net_type=train_net_type,random_seed=12345)

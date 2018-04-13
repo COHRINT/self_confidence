@@ -29,6 +29,40 @@ function n_rand_in_range(A::Array,N::Int64)
    end
 end
 
+function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,seed_list,degree,mcts_its,mcts_depth,mcts_e,discount_fact,transition_prob,fname,net_type)
+    problem_dict = Dict()
+        try
+            println("Making network $i of $training_set_size")
+
+            if net_type == :random
+                g = rand_network(n,exit_rwd=exit_rwd,caught_rwd=caught_rwd,
+                                 sensor_rwd=sensor_rwd,net_seed=seed_list,approx_E=2*n,
+                                 exit_nodes=[8],target_mean_degree=degree,method=:erdos_n_e)
+            elseif net_type == :original
+                g = original_roadnet(exit_rwd=exit_rwd,caught_rwd=caught_rwd,sensor_rwd=sensor_rwd)
+            else
+                println("no other net_types implemented at this time")
+            end
+
+            evader_start = 1
+            pursuer_start = 4
+            exit_loc = 13
+            display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
+
+            problem_dict[i] = Dict(:graph=>g,:mcts_its=>mcts_its,:mcts_depth=>mcts_depth,
+                                   :mcts_e=>mcts_e,:net_seed=>seed_list,:n_param=>n,
+                                   :exit_rwd=>exit_rwd,:caught_rwd=>caught_rwd,
+                                   :discount=>discount_fact,:trans_prob=>transition_prob,
+                                   :sensor_rwd=>sensor_rwd,:target_degree=>degree,
+                                   :evader_start=>evader_start,:pursuer_start=>pursuer_start,
+                                   :exit_loc=>exit_loc)
+        catch
+            println("Failed making network $i, moving on...")
+            problem_dict[i] = Dict(:error=>"failed making network")
+        end
+    return problem_dict
+end
+
 function make_nets(training_set_size::Int64;exit_rwd_bounds::Array{Float64}=[2000.],
                    sensor_rwd_bounds::Array{Float64}=[-100.],caught_rwd_bounds::Array{Float64}=[-2000.],
                    degree_bounds::Array{Float64}=[3.0,7.0],n_bounds::Array{Int64}=[15,75],
@@ -62,39 +96,19 @@ function make_nets(training_set_size::Int64;exit_rwd_bounds::Array{Float64}=[200
     println(exit_rwd_ary,sensor_rwd_ary,caught_rwd_ary,degree_ary,n_ary)
 
     # store problems in a dictionary
+    pd_array = pmap(populate_net_dict,collect(1:training_set_size),repmat([training_set_size],training_set_size,1),n_ary,exit_rwd_ary,caught_rwd_ary,sensor_rwd_ary,seed_list,degree_ary,mcts_its_ary,mcts_depth_ary,mcts_e_ary,discount_fact_ary,transition_prob_ary,repmat([fname],training_set_size,1),repmat([net_type],training_set_size,1))
+    # pmap gives an array, we want a Dict, so put the entries into a dict
+    # ther must be a better way to do this, but I don't have time to figure it out
     problem_dict = Dict()
-
-    for i=1:training_set_size
-        try
-            println("Making network $i of $training_set_size")
-
-            if net_type == :random
-                g = rand_network(n_ary[i],exit_rwd=exit_rwd_ary[i],caught_rwd=caught_rwd_ary[i],
-                                 sensor_rwd=sensor_rwd_ary[i],net_seed=seed_list[i],approx_E=2*n_ary[i],
-                                 exit_nodes=[8],target_mean_degree=degree_ary[i],method=:erdos_n_e)
-            elseif net_type == :original
-                g = original_roadnet(exit_rwd=exit_rwd_ary[i],caught_rwd=caught_rwd_ary[i],sensor_rwd=sensor_rwd_ary[i])
-            else
-                println("no other net_types implemented at this time")
-            end
-
-            evader_start = 1
-            pursuer_start = 4
-            exit_loc = 13
-            display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
-
-            problem_dict[i] = Dict(:graph=>g,:mcts_its=>mcts_its_ary[i],:mcts_depth=>mcts_depth_ary[i],
-                                   :mcts_e=>mcts_e_ary[i],:net_seed=>seed_list[i],:n_param=>n_ary[i],
-                                   :exit_rwd=>exit_rwd_ary[i],:caught_rwd=>caught_rwd_ary[i],
-                                   :discount=>discount_fact_ary[i],:trans_prob=>transition_prob_ary[i],
-                                   :sensor_rwd=>sensor_rwd_ary[i],:target_degree=>degree_ary[i],
-                                   :evader_start=>evader_start,:pursuer_start=>pursuer_start,:exit_loc=>exit_loc)
-        catch
-            println("Failed making network $i, moving on...")
-            problem_dict[i] = Dict(:error=>"failed making network")
-            continue
-        end
+    for i=1:length(pd_array)
+        #  display(pd_array[i][i])
+        # HACK, HACKETY HACK HACK HACK
+        problem_dict[i] = pd_array[i][i]
     end
+    #  display(problem_dict)
+    #  display(problem_dict[1])
+    #  display(problem_dict[2])
+    #  error()
 
     println("writing data to $fname")
     jldopen("$fname", "w") do file
@@ -102,61 +116,3 @@ function make_nets(training_set_size::Int64;exit_rwd_bounds::Array{Float64}=[200
         write(file,"problem_dict", problem_dict)
     end
 end
-
-## run on original road net, varying only transition probability
-#  println("making transition networks")
-#  make_nets(2500,fname="logs/transition_vary_4.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[8],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original)
-#
-#  println("making test multi-graph networks")
-#  make_nets(250,fname="logs/transition_vary_test_4.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[8],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=12345)
-
-#  println("making test bad solver networks")
-#  make_nets(250,fname="logs/transition_vary_test_bad_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[1],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=12345)
-#  println("making test ok solver networks")
-#  make_nets(250,fname="logs/transition_vary_test_ok_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[500],mcts_depth_bounds=[3],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.0,1.0],discount_fact_bounds=[0.95],net_type=:original,random_seed=12345)
-
-#########################################################
-###########Discount Networks
-#########################################################
-##  run on original road net, varying only discount factor
-#  println("making discount networks")
-#  make_nets(500,fname="logs/discount_vary.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.9],discount_fact_bounds=[0.00,1.0],net_type=:original)
-#
-#  println("making test discount networks")
-#  make_nets(50,fname="logs/discount_vary_test.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.9],discount_fact_bounds=[0.00,1.0],net_type=:original)
-
-#########################################################
-###########Random Networks
-#########################################################
-## run with fixed parameters on changing network
-#  println("making random networks")
-#  make_nets(500,fname="logs/net_vary.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
-#
-#  println("making test random networks")
-#  make_nets(50,fname="logs/net_vary_test.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[5],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
-#
-#  println("making test random networks bad solver")
-#  make_nets(50,fname="logs/net_vary_test_bad_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[1],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
-#
-#  println("making test random networks OK solver")
-#  make_nets(50,fname="logs/net_vary_test_bad_solver.jld",exit_rwd_bounds=[2000.],sensor_rwd_bounds=[-100.],caught_rwd_bounds=[-2000.],
-          #  degree_bounds=[4.],n_bounds=[13],mcts_its_bounds=[100],mcts_depth_bounds=[3],mcts_e_bounds=[1000.],
-          #  trans_prob_bounds=[0.7],discount_fact_bounds=[0.95],net_type=:random)
