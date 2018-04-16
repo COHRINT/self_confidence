@@ -242,10 +242,9 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
             @debug length(data_entry)
             @debug training_data
             push!(training_data,data_entry)
-
-            CSV.write("$data_fname.csv",training_data)
         end
     end
+    CSV.write("$data_fname.csv",training_data)
 
     if logtofile
         # using the "open(...) do f ... syntax printed the length of the file at the end, this ways doesn't do that
@@ -256,12 +255,3 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
         close(f)
     end
 end
-
-#  make_training_data(data_fname="logs/transition_vary_4")
-#  make_training_data(data_fname="logs/transition_vary_test_4")
-#  make_training_data(data_fname="logs/transition_vary_test_bad_solver")
-#  make_training_data(data_fname="logs/transition_vary_test_ok_solver")
-#  make_training_data(data_fname="logs/discount_vary")
-#  make_training_data(data_fname="logs/discount_vary_test")
-#  make_training_data(data_fname="logs/net_vary")
-#  make_training_data(data_fname="logs/net_vary_test")
