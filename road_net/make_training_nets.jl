@@ -31,7 +31,7 @@ end
 
 function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,seed_list,degree,mcts_its,mcts_depth,mcts_e,discount_fact,transition_prob,fname,net_type)
     problem_dict = Dict()
-        try
+        #  try
             println("Making network $i of $training_set_size")
 
             if net_type == :random
@@ -47,7 +47,7 @@ function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,
             evader_start = 1
             pursuer_start = 4
             exit_loc = 13
-            display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
+            #  display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
 
             problem_dict[i] = Dict(:graph=>g,:mcts_its=>mcts_its,:mcts_depth=>mcts_depth,
                                    :mcts_e=>mcts_e,:net_seed=>seed_list,:n_param=>n,
@@ -56,10 +56,10 @@ function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,
                                    :sensor_rwd=>sensor_rwd,:target_degree=>degree,
                                    :evader_start=>evader_start,:pursuer_start=>pursuer_start,
                                    :exit_loc=>exit_loc)
-        catch
-            println("Failed making network $i, moving on...")
-            problem_dict[i] = Dict(:error=>"failed making network")
-        end
+        #  catch
+            #  println("Failed making network $i, moving on...")
+            #  problem_dict[i] = Dict(:error=>"failed making network")
+        #  end
     return problem_dict
 end
 

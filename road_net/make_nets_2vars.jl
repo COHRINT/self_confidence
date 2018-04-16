@@ -56,9 +56,8 @@ elseif fname == "transition_e_vary"
     train_depth = [8]
     train_deg_bnds = [4.]
     train_net_type = :original
-    train_n_bnds = [13,45]
     train_n_bnds = [13]
-    train_d_bnds = [0.5,1.0]
+    train_d_bnds = [0.95]
     training_exit_rwd_bnds = [2000.]
     training_sense_rwd_bnds = [-100.]
     training_caught_rwd_bnds = [-2000.]
@@ -71,7 +70,7 @@ elseif fname == "transition_e_vary"
     ok_deg_bnds = [4.]
     ok_net_type = :original
     ok_n_bnds = [13]
-    ok_d_bnds = [0.5,1.0]
+    ok_d_bnds = [0.95]
     ok_exit_rwd_bnds = [2000.]
     ok_sense_rwd_bnds = [-100.]
     ok_caught_rwd_bnds = [-2000.]
@@ -84,7 +83,7 @@ elseif fname == "transition_e_vary"
     bad_deg_bnds = [4.]
     bad_net_type = :original
     bad_n_bnds = [13]
-    bad_d_bnds = [0.5,1.0]
+    bad_d_bnds = [0.95]
     bad_exit_rwd_bnds = [2000.]
     bad_sense_rwd_bnds = [-100.]
     bad_caught_rwd_bnds = [-2000.]
@@ -97,7 +96,7 @@ elseif fname == "net_transition_vary"
     train_deg_bnds = [3.,8.]
     train_net_type = :random
     train_n_bnds = [13,45]
-    train_d_bnds = [0.5,1.0]
+    train_d_bnds = [0.95]
     training_exit_rwd_bnds = [2000.]
     training_sense_rwd_bnds = [-100.]
     training_caught_rwd_bnds = [-2000.]
@@ -110,7 +109,7 @@ elseif fname == "net_transition_vary"
     ok_deg_bnds = [3.,8.]
     ok_net_type = :random
     ok_n_bnds = [13,45]
-    ok_d_bnds = [0.5,1.0]
+    ok_d_bnds = [0.95]
     ok_exit_rwd_bnds = [2000.]
     ok_sense_rwd_bnds = [-100.]
     ok_caught_rwd_bnds = [-2000.]
@@ -123,7 +122,7 @@ elseif fname == "net_transition_vary"
     bad_deg_bnds = [3.,8.]
     bad_net_type = :random
     bad_n_bnds = [13,45]
-    bad_d_bnds = [0.5,1.0]
+    bad_d_bnds = [0.95]
     bad_exit_rwd_bnds = [2000.]
     bad_sense_rwd_bnds = [-100.]
     bad_caught_rwd_bnds = [-2000.]
@@ -136,7 +135,7 @@ elseif fname == "net_transition_discount_vary"
     train_depth = [8]
     train_deg_bnds = [3.,8.]
     train_net_type = :random
-    train_n_bnds = [13,45]
+    train_n_bnds = [13,150]
     train_d_bnds = [0.5,1.0]
     training_exit_rwd_bnds = [2000.]
     training_sense_rwd_bnds = [-100.]
@@ -149,7 +148,7 @@ elseif fname == "net_transition_discount_vary"
     ok_depth = [3]
     ok_deg_bnds = [3.,8.]
     ok_net_type = :random
-    ok_n_bnds = [13,45]
+    ok_n_bnds = [13,150]
     ok_d_bnds = [0.5,1.0]
     ok_exit_rwd_bnds = [2000.]
     ok_sense_rwd_bnds = [-100.]
@@ -162,7 +161,7 @@ elseif fname == "net_transition_discount_vary"
     bad_depth = [1]
     bad_deg_bnds = [3.,8.]
     bad_net_type = :random
-    bad_n_bnds = [13,45]
+    bad_n_bnds = [13,150]
     bad_d_bnds = [0.5,1.0]
     bad_exit_rwd_bnds = [2000.]
     bad_sense_rwd_bnds = [-100.]
