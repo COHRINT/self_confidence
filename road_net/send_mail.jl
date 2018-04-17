@@ -1,5 +1,9 @@
 function on_gcloud(;return_name::Bool=false,hostname::String="instance")
     # return if we're on google cloud, i.e. the word 'instance' is in the hostname
+    if !("hostname" in readdir("/etc"))
+        # if the "hostname" file doesn't exist we're not on gcloud
+        return false
+    end
     hname = open("/etc/hostname","r") do f
         readstring(f)
     end
