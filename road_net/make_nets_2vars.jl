@@ -4,7 +4,7 @@
 @everywhere include("make_training_data_SQ.jl")
 @everywhere include("send_mail.jl")
 
-fname = "net_transition_discount_vary"
+fname = "n_vary"
 train_txt = "_reference_solver_training"
 test_txt = "_reference_solver_test"
 bad_txt = "_bad_solver"
