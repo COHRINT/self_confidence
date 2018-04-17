@@ -200,7 +200,8 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
 
             if sim_steps == -1
                 # -1 signifies auto calculation
-                steps = 5*mdp.road_net.gprops[:net_stats].diam
+                # throw the book at it!
+                steps = 20*mdp.road_net.gprops[:net_stats].diam
             else
                 steps = sim_steps
             end

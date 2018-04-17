@@ -210,7 +210,20 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     return in_data, out_data, table, input_sch, output_sch
 end
 
-function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,y_pred_ary::Dict,idx::Int64,xvar::Symbol,yvar_mean::Symbol,yvar_std::Symbol,limits::Dict,txt_loc::Array)
+function add_sq_scatter3d_annotation(ax_ary::PyCall.PyObject,in::Array,out_eng_ary::Dict,i1::Symbol,i2::Symbol,poi::Int64,SQmodel::SQ_model;yval::Symbol=:X3_1,yval_std::Symbol=:X3_2,marker::String="*",s::Int64=100,color=:black,fontsize::Int64=12)
+
+    in_eng, pred_outputs = SQ_predict(SQmodel,reshape(in,length(in),1),[1. 1.]',use_eng_units=true)
+    limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
+    println(limits)
+    rwd_rng = (limits[yval][1],limits[yval][2])
+
+    sq = X3(Normal(out_eng_ary[yval][poi],out_eng_ary[yval_std][poi]),Normal(pred_outputs[yval][1],pred_outputs[yval_std][1]),global_rwd_range=rwd_rng)
+
+    ax_ary[:scatter3D](in_eng[i1][1],in_eng[i2][1],out_eng_ary[yval][poi],color=color,alpha=0.9,marker=marker,s=s,label="SQ=$(@sprintf("%0.3f",sq))")
+    ax_ary[:annotate](@sprintf("test"),xy=[1,1],xytext=[0.5,.5],textcoords="figure fraction",fontsize=fontsize)
+end
+
+function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,y_pred_ary::Dict,idx::Int64,xvar::Symbol,yvar_mean::Symbol,yvar_std::Symbol,limits::Dict,txt_loc::Array;fontsize::Int64=12)
     x_srt = sortperm(tst_in_eng[xvar])
     ex_idx = x_srt[idx]
     ex_x = x_ary[xvar][ex_idx]
@@ -220,17 +233,17 @@ function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,y_pred_ar
     ex_t = Normal(ex_ty,y_pred_ary[yvar_std][ex_idx])
     ex_X3 = X3(ex_c,ex_t,global_rwd_range=(limits[yvar_mean][1],limits[yvar_mean][2]))
 
-    ax[:annotate](@sprintf("SQ:%0.2f",ex_X3),xy=[ex_x,ex_cy],xytext=txt_loc,textcoords="figure fraction",arrowprops=Dict(:arrowstyle=>"->"))
+    ax[:annotate](@sprintf("SQ:%0.2f",ex_X3),xy=[ex_x,ex_cy],xytext=txt_loc,textcoords="figure fraction",arrowprops=Dict(:arrowstyle=>"->"),fontsize=fontsize)
 
 end
 
-function scatter_with_conf_bnds(ax::PyCall.PyObject,x::Dict,y::Dict,xval::Symbol,yval::Symbol,yval_std::Symbol,color::Symbol)
-    x_srt = sortperm(x[xval])
-    ax_ary[:scatter](x[xval][x_srt],y[yval][x_srt],label="true",color=color)
-    t_ucl = y[yval][x_srt]+y[yval_std][x_srt]
-    t_lcl = y[yval][x_srt]-y[yval_std][x_srt]
-    ax_ary[:scatter](x[xval][x_srt],t_ucl,label="model",s=0)
-    ax_ary[:scatter](x[xval][x_srt],t_lcl,label="model",s=0)
+function scatter_with_conf_bnds(ax::PyCall.PyObject,x::Dict,y::Dict,xval::Symbol,yval::Symbol,yval_std::Symbol,color::Symbol;oversample::Int64=2,label::String="")
+    x_srt = sortperm(x[xval])[1:oversample:end]
+    ax_ary[:scatter](x[xval][x_srt],y[yval][x_srt],label=label,color=color)
+    t_ucl = y[yval][x_srt]+y[yval_std][x_srt]/2
+    t_lcl = y[yval][x_srt]-y[yval_std][x_srt]/2
+    ax_ary[:scatter](x[xval][x_srt],t_ucl,label="",s=0)
+    ax_ary[:scatter](x[xval][x_srt],t_lcl,label="",s=0)
     ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_ucl,alpha=0.2,color=color)
     ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl,alpha=0.2,color=color)
 
@@ -244,12 +257,13 @@ function make_label_from_keys(d::Dict)
 end
 
 function main()
-    net_type = "net_transition_discount_vary"
+    net_type = "transition_vary"
 
     train_fname = "logs/$(net_type)_reference_solver_training.csv"
     test_fname = "logs/$(net_type)_bad_solver.csv"
 
-    inputs = Dict(:tprob=>"ML.Continuous",:discount=>"ML.Continuous")
+    #  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
+    inputs = Dict(:tprob=>"ML.Continuous")
     outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
     log_fname = "nn_logs/$(net_type)_$(make_label_from_keys(inputs))"

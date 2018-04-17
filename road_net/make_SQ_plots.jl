@@ -46,13 +46,19 @@ function searchdir(path,key1,key2)
     return filt_list2
 end
 
+##### display plots to gui, or just save
+## if they plot to gui, they don't have the size specified in teh code
+pygui(false)
+
 # problem setup
-net_type = "net_transition_discount_vary"
+net_type = "transition_vary"
+#  net_type = "transition_e_vary"
 
 train_fname = "logs/$(net_type)_reference_solver_training.csv"
 test_fname = "logs/$(net_type)_bad_solver.csv"
 
-inputs = Dict(:tprob=>"ML.Continuous",:discount=>"ML.Continuous")
+inputs = Dict(:tprob=>"ML.Continuous")
+#  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
@@ -77,59 +83,60 @@ _notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units
 info("restoring test data")
 tst_in_eng = restore_eng_units(test_input,input_sch)
 tst_out_eng_ary = restore_eng_units(test_output,output_sch)
-#  tst_out_eng = tst_out_eng_ary[:X3_1]
-#  tst_out_eng_2 = tst_out_eng_ary[:X3_2]
 
 # make figures
-
 if length(inputs) == 1
- fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
- fig[:set_size_inches](8.0,6.0)
+    fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
+    fig[:set_size_inches](8.0,6.0)
+    fontsize = 15
 
- i1 = collect(keys(inputs))[1]
+    i1 = collect(keys(inputs))[1]
 
- scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red)
+    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,oversample=3,label="candidate")
 
- ax_ary[:set_xlabel](string(i1))
- ax_ary[:set_ylabel](string(:X3_1))
- ax_ary[:axhline](limits[:X3_1][2])
- ax_ary[:axhline](limits[:X3_1][1])
+    ax_ary[:set_xlabel](string(i1),fontsize=fontsize)
+    ax_ary[:set_ylabel](string("Reward"),fontsize=fontsize)
+    ax_ary[:axhline](limits[:X3_1][2])
+    ax_ary[:axhline](limits[:X3_1][1])
 
- add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,i1,:X3_1,:X3_2,limits,[0.3,0.7])
- add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,i1,:X3_1,:X3_2,limits,[0.65,0.5])
- ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=15,va="bottom")
- ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=15,va="top")
+    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,i1,:X3_1,:X3_2,limits,[0.3,0.7],fontsize=fontsize)
+    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,i1,:X3_1,:X3_2,limits,[0.65,0.5],fontsize=fontsize)
+    ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=fontsize,va="bottom")
+    ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=fontsize,va="top")
 
- scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue)
+    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue,oversample=8,label="trusted")
+    PyPlot.legend()
 elseif length(inputs) > 1
+    fig,ax_ary = PyPlot.subplots(1,1)
+    fig[:set_size_inches](6.0,6.0)
+    ax_ary = PyPlot.subplot(111,projection="3d")
+    fontsize = 15
+
     # make correlation plots
     i1 = collect(keys(inputs))[1]
     i2 = collect(keys(inputs))[2]
 
     #  corrplot(data_mat)
+    poi1 = 200 # point of interest, where X3 will be calculated
+    poi2 = 101 # point of interest, where X3 will be calculated
+    subsample_num = 3
 
-    scatter3D(tst_in_eng[i1],tst_in_eng[i2],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
-    scatter3D(tst_in_eng[i1],tst_in_eng[i2],pred_outputs[:X3_1],color=:blue,alpha=0.2)
+    ax_ary[:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],tst_out_eng_ary[:X3_1][1:subsample_num:end],color=:red,alpha=0.2,label="Candidate")
+    ax_ary[:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],pred_outputs[:X3_1][1:subsample_num:end],color=:blue,alpha=0.2,label="Trusted")
 
-    #  t_ucl = y[yval][x_srt]+y[yval_std][x_srt]
-    #  t_lcl = y[yval][x_srt]-y[yval_std][x_srt]
-    #  ax_ary[:scatter](x[xval][x_srt],t_ucl,label="model",s=0)
-    #  ax_ary[:scatter](x[xval][x_srt],t_lcl,label="model",s=0)
-    #  ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_ucl,alpha=0.2,color=color)
-    #  ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl,alpha=0.2,color=color)
+    add_sq_scatter3d_annotation(ax_ary,test_input[:,poi1],tst_out_eng_ary,i1,i2,poi1,SQmodel,marker="o",s=100,fontsize=fontsize)
+    add_sq_scatter3d_annotation(ax_ary,test_input[:,poi2],tst_out_eng_ary,i1,i2,poi2,SQmodel,marker="*",s=100,fontsize=fontsize)
 
-    #  ax_ary[:set_xlabel](string(i1))
-    #  ax_ary[:set_ylabel](string(i2))
-    #  ax_ary[:set_zlabel](string(:X3_1))
-    #  ax_ary[:axhline](limits[:X3_1][2])
-    #  ax_ary[:axhline](limits[:X3_1][1])
+    ax_ary[:view_init](azim=11,elev=22)
+
+    ax_ary[:set_xlabel](string(i1),fontsize=fontsize)
+    ax_ary[:set_ylabel](string(i2),fontsize=fontsize)
+    ax_ary[:set_zlabel](string("Reward"),fontsize=fontsize)
+
+    PyPlot.legend()
 else
  error("can't support more than 2 inputs yet")
 end
 
-#  PyPlot.legend()
-show()
-# 3d scatter
-
-#  plot(p1,p3,p4,p5,size=(1200,600))
-#  plot(p1,size=(900,600))
+#  show()
+PyPlot.savefig(string(log_fname,".png"),dpi=300,transparent=true)

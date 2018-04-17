@@ -2,8 +2,9 @@ using StatPlots
 using CSV
 
 type_list = [Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64]
-table = CSV.read("logs/test_gconvert.csv")
+#  table = CSV.read("logs/test_gconvert.csv")
 #  table = CSV.read("logs/net_transition_discount_vary_reference_solver_training.csv",types=type_list,weakrefstrings=false,rows=10)
+table = CSV.read("logs/transition_e_vary_reference_solver_training.csv")
 #  for c in names(table)
     #  println(typeof(table[c]))
 #  end
