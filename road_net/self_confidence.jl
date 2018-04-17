@@ -89,15 +89,11 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
     println("cr: $cr, tr: $tr")
 
     sq = (cr-tr)/ref_dist
-    #  if t_sig > glb_rwd_rng
-        #  k = 5 * (1/glb_rwd_rng)
-    #  else
-        k = 1/5
-    #  end
+    k = 5.
 
     SQ = general_logistic(sq,k=k,x0=x0,L=L)
 
-    println("SQ: $SQ, sq: $sq, k: $k")
+    println("SQ: $SQ, sq: $sq, k: $k, L: $L, x0: $x0")
     if return_raw_sq
         return SQ,sq,k
     else

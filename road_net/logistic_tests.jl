@@ -19,7 +19,7 @@ fig = PyPlot.figure()
 fig[:set_size_inches](8.,6.)
 ax = fig[:add_subplot](1,1,1)
 fontsize = 12
-ax[:set_title](LaTeXString("Location of \$x_{sat}\$ for different \$k\$\n\$x_{sat}\\approx 5/k\$, or \$k\\approx x_{sat}/5\$"),size=fontsize)
+ax[:set_title](LaTeXString("Location of \$x_{sat}\$ for different \$k\$\n\$x_{sat}\\approx 5/k\$, or \$k\\approx 5/x_{sat}\$"),size=fontsize)
 ax[:set_xlabel]("x",size=fontsize)
 ax[:set_ylabel]("y",size=fontsize)
 
