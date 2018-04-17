@@ -14,12 +14,14 @@ if fname == "transition_vary"
     include("experiment_params/transition_vary.jl")
 elseif fname == "n_vary"
     include("experiment_params/n_vary.jl")
+elseif fname == "sense_vary"
+    include("experiment_params/sense_vary.jl")
 elseif fname == "transition_e_vary"
     include("experiment_params/transition_e_vary.jl")
 elseif fname == "net_transition_vary"
     include("experiment_params/net_transition_vary.jl")
-elseif fname == "net_transition_discount_vary"
-    include("experiment_params/net_transition_discount_vary.jl")
+elseif fname == "net_transition_sense_vary"
+    include("experiment_params/net_transition_sense_vary.jl")
 elseif fname == "something else"
     #keeping empty for now
 end
