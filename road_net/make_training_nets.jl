@@ -47,7 +47,7 @@ function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,
             evader_start = 1
             pursuer_start = 4
             exit_loc = 13
-            display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
+            #  display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
 
             problem_dict[i] = Dict(:graph=>g,:mcts_its=>mcts_its,:mcts_depth=>mcts_depth,
                                    :mcts_e=>mcts_e,:net_seed=>seed_list,:n_param=>n,
