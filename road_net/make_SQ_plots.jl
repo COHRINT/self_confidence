@@ -51,126 +51,153 @@ end
 pygui(false)
 
 # problem setup
-compare = "ok"
+#  compare = "ok"
 #  net_type = "n_vary"
 #  net_type = "transition_vary"
 #  net_type = "transition_e_vary"
-net_type = "sense_vary"
+#  net_type = "sense_vary"
 #  inpts = [:exit_distance]
 #  inpts = [:tprob]
-inpts = [:sensor_rwd]
+#  inpts = [:sensor_rwd]
 #  inpts = [:tprob,:e_mcts]
-epocs = 1000
+#  epocs = 1000
 #  sq_example_locations = [1.0,4.0]
 #  sq_example_locations = [0.25,0.75]
-sq_example_locations = [-15., -150.]
+#  sq_example_locations = [-15., -150.]
 
-train_fname = "logs/$(net_type)_reference_solver_training.csv"
-test_fname = "logs/$(net_type)_$(compare)_solver.csv"
+experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["ok","bad"],:legend_loc=>"upper right"),
+                       "sense_vary"=>Dict(:inpts=>[:sensor_rwd],:epocs=>1000,:ex_locs=>[-35.,-150.],:cmp=>["ok","bad"],:legend_loc=>"lower right"),
+                       "transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["ok","bad"],:legend_loc=>"lower right"),
+                       "transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[],:cmp=>["ok","bad"],:legend_loc=>"lower right")
+                      )
+experiment_dict = Dict("transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["bad"],:legend_loc=>"lower right"))
+#  experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["bad"],:legend_loc=>"upper right"))
+#  experiment_dict = Dict("transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["bad"],:legend_loc=>"upper right"))
 
-inputs = Dict()
-for i in inpts
-    inputs[i] = "ML.Continuous"
+
+for expr in keys(experiment_dict)
+    net_type = expr
+    inpts = experiment_dict[expr][:inpts]
+    epocs = experiment_dict[expr][:epocs]
+    sq_example_locations = experiment_dict[expr][:ex_locs]
+    cmp_list = experiment_dict[expr][:cmp]
+    legend_loc = experiment_dict[expr][:legend_loc]
+    println("Plotting: $(experiment_dict[expr])")
+    for compare in cmp_list
+        println("running '$compare' data")
+        train_fname = "logs/$(net_type)_reference_solver_training.csv"
+        test_fname = "logs/$(net_type)_$(compare)_solver.csv"
+
+        inputs = Dict()
+        for i in inpts
+            inputs[i] = "ML.Continuous"
+        end
+        outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
+
+        log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
+        log_loc = "nn_logs/"
+        #  log_path = string(log_loc,"/",log_fname,"_net1-$(epocs)
+
+        #  println("##########")
+        #  println("$log_fname, $(readdir(log_loc))")
+        #  println("##########")
+        if !(any([contains(x,string(log_fname,"_")) for x in readdir(log_loc)]))
+            println("No nn file exists, making one now")
+            #  make_sq_model(net_type,inpts)
+            make_sq_model(net_type,inpts,num_epoc=epocs)
+        end
+
+        param_files = searchdir(log_loc,log_fname,".params")
+
+        num_epocs = parse(split(match(r"-\d+",param_files[1]).match,"-")[2])
+
+        SQmodel = load_network(string(log_loc,log_fname),num_epocs,string(log_loc,log_fname,"_SQmodel.jld"))
+
+        # get test and make predictions
+        test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
+
+        data_mat = ML.featuremat(merge(input_sch,output_sch),test_table)
+
+        info("restoring limits")
+        limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
+        info("getting predictions")
+        _notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units=true)
+
+        info("restoring test data")
+        tst_in_eng = restore_eng_units(test_input,input_sch)
+        tst_out_eng_ary = restore_eng_units(test_output,output_sch)
+
+        # make figures
+        if length(inputs) == 1
+            fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
+            fig[:set_size_inches](8.0,6.0)
+            fontsize = 15
+            PyPlot.grid()
+
+            i1 = collect(keys(inputs))[1]
+
+            idx1 = nearest_to_x(tst_in_eng[i1],sq_example_locations[1])
+            idx2 = nearest_to_x(tst_in_eng[i1],sq_example_locations[2])
+
+            scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=[idx1 idx2],label="candidate",bar=true)
+            #  scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=collect(1:length(tst_in_eng[i1])),label="candidate",bar=true)
+            #  ax_ary[:scatter](tst_in_eng[i1],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
+
+            ax_ary[:set_xlabel](string(i1),fontsize=fontsize)
+            ax_ary[:set_ylabel](string("Reward"),fontsize=fontsize)
+            ax_ary[:axhline](limits[:X3_1][2])
+            ax_ary[:axhline](limits[:X3_1][1])
+
+            add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,idx1,i1,:X3_1,:X3_2,SQmodel,fontsize=fontsize)
+            add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,idx2,i1,:X3_1,:X3_2,SQmodel,fontsize=fontsize)
+
+            ax_ary[:text](minimum(tst_in_eng[i1]),limits[:X3_1][2],L"r_H",fontsize=fontsize,va="bottom")
+            ax_ary[:text](minimum(tst_in_eng[i1]),limits[:X3_1][1],L"r_L",fontsize=fontsize,va="top")
+
+            #  ax_ary[:scatter](tst_in_eng[i1],pred_outputs[:X3_1],color=:blue)
+            scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue,subsample=collect(1:8:length(tst_in_eng[i1])),label="trusted",bar=false)
+            ax_ary[:legend](loc=legend_loc)
+
+            PyPlot.savefig(string(log_fname,"_",compare,".png"),dpi=300,transparent=true)
+        elseif length(inputs) > 1
+            PyPlot.using3D()
+            ax3 = Array{PyCall.PyObject}(3)
+            ax3[1] = PyPlot.subplot2grid((6,10), (0,0),colspan=8,rowspan=6,projection="3d")
+            ax3[2] = PyPlot.subplot2grid((6,10), (0,8),colspan=2,rowspan=3)
+            ax3[3] = PyPlot.subplot2grid((6,10), (3,8),colspan=2,rowspan=3)
+            PyPlot.gcf()[:set_size_inches](8.0,5.0)
+            fontsize = 15
+
+            # make correlation plots
+            i1 = inpts[1]
+            i2 = inpts[2]
+
+            #  corrplot(data_mat)
+            poi1 = [0.2;200.] # point of interest, where X3 will be calculated
+            poi2 = [0.7;800.] # point of interest, where X3 will be calculated
+            poi1_norm = [(poi1[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi1[2]-mean(input_sch[i2]))/std(input_sch[i2])]
+            poi2_norm = [(poi2[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi2[2]-mean(input_sch[i2]))/std(input_sch[i2])]
+            subsample_num = 3
+
+            ax3[1][:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],tst_out_eng_ary[:X3_1][1:subsample_num:end],color=:red,alpha=0.2,label="Candidate")
+            ax3[1][:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],pred_outputs[:X3_1][1:subsample_num:end],color=:blue,alpha=0.2,label="Trusted")
+
+            add_sq_scatter3d_annotation(ax3[1],ax3[2],test_input,tst_out_eng_ary,i1,i2,poi1_norm,SQmodel,marker="o",s=50,fontsize=12)
+            add_sq_scatter3d_annotation(ax3[1],ax3[3],test_input,tst_out_eng_ary,i1,i2,poi2_norm,SQmodel,marker="*",s=50,fontsize=12)
+
+            ax3[1][:view_init](azim=-76,elev=25)
+
+            ax3[1][:set_xlabel](string(i1),fontsize=fontsize)
+            ax3[1][:set_ylabel](string(i2),fontsize=fontsize)
+            ax3[1][:set_zlabel](string("Reward"),fontsize=fontsize)
+
+            PyPlot.tight_layout()
+
+            PyPlot.savefig(string(log_fname,"_",compare,".png"),dpi=300,transparent=true)
+        else
+         error("can't support more than 2 inputs yet")
+        end
+        PyPlot.close_figs()
+    end
 end
-outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
-log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
-log_loc = "nn_logs/"
-#  log_path = string(log_loc,"/",log_fname,"_net1-$(epocs)
-
-#  println("##########")
-#  println("$log_fname, $(readdir(log_loc))")
-#  println("##########")
-if !(any([contains(x,string(log_fname,"_")) for x in readdir(log_loc)]))
-    println("No nn file exists, making one now")
-    #  make_sq_model(net_type,inpts)
-    make_sq_model(net_type,inpts,num_epoc=epocs)
-end
-
-param_files = searchdir(log_loc,log_fname,".params")
-
-num_epocs = parse(split(match(r"-\d+",param_files[1]).match,"-")[2])
-
-SQmodel = load_network(string(log_loc,log_fname),num_epocs,string(log_loc,log_fname,"_SQmodel.jld"))
-
-# get test and make predictions
-test_input, test_output, test_table, input_sch, output_sch = return_data(test_fname, inputs=inputs, outputs=outputs)
-
-data_mat = ML.featuremat(merge(input_sch,output_sch),test_table)
-
-info("restoring limits")
-limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
-info("getting predictions")
-_notused, pred_outputs = SQ_predict(SQmodel,test_input,test_output,use_eng_units=true)
-
-info("restoring test data")
-tst_in_eng = restore_eng_units(test_input,input_sch)
-tst_out_eng_ary = restore_eng_units(test_output,output_sch)
-
-# make figures
-if length(inputs) == 1
-    fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
-    fig[:set_size_inches](8.0,6.0)
-    fontsize = 15
-    PyPlot.grid()
-
-    i1 = collect(keys(inputs))[1]
-
-    idx1 = nearest_to_x(tst_in_eng[i1],sq_example_locations[1])
-    idx2 = nearest_to_x(tst_in_eng[i1],sq_example_locations[2])
-
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=[idx1 idx2],label="candidate",bar=true)
-    #  scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=collect(1:length(tst_in_eng[i1])),label="candidate",bar=true)
-    #  ax_ary[:scatter](tst_in_eng[i1],tst_out_eng_ary[:X3_1],color=:red)
-
-    ax_ary[:set_xlabel](string(i1),fontsize=fontsize)
-    ax_ary[:set_ylabel](string("Reward"),fontsize=fontsize)
-    ax_ary[:axhline](limits[:X3_1][2])
-    ax_ary[:axhline](limits[:X3_1][1])
-
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,idx1,i1,:X3_1,:X3_2,[0.3,0.7],SQmodel,fontsize=fontsize)
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,idx2,i1,:X3_1,:X3_2,[0.65,0.5],SQmodel,fontsize=fontsize)
-
-    ax_ary[:text](minimum(tst_in_eng[i1]),limits[:X3_1][2],L"r_H",fontsize=fontsize,va="bottom")
-    ax_ary[:text](minimum(tst_in_eng[i1]),limits[:X3_1][1],L"r_L",fontsize=fontsize,va="top")
-
-    #  ax_ary[:scatter](tst_in_eng[i1],pred_outputs[:X3_1],color=:blue)
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue,subsample=collect(1:8:length(tst_in_eng[i1])),label="trusted",bar=false)
-    PyPlot.legend()
-elseif length(inputs) > 1
-    PyPlot.using3D()
-    fig,ax_ary = PyPlot.subplots(1,1)
-    fig[:set_size_inches](8.0,4.0)
-    ax_ary = PyPlot.subplot(111,projection="3d")
-    fontsize = 15
-
-    # make correlation plots
-    i1 = inpts[1]
-    i2 = inpts[2]
-
-    #  corrplot(data_mat)
-    poi1 = [0.2;200.] # point of interest, where X3 will be calculated
-    poi2 = [0.7;800.] # point of interest, where X3 will be calculated
-    poi1_norm = [(poi1[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi1[2]-mean(input_sch[i2]))/std(input_sch[i2])]
-    poi2_norm = [(poi2[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi2[2]-mean(input_sch[i2]))/std(input_sch[i2])]
-    subsample_num = 3
-
-    ax_ary[:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],tst_out_eng_ary[:X3_1][1:subsample_num:end],color=:red,alpha=0.2,label="Candidate")
-    ax_ary[:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],pred_outputs[:X3_1][1:subsample_num:end],color=:blue,alpha=0.2,label="Trusted")
-
-    add_sq_scatter3d_annotation(ax_ary,test_input,tst_out_eng_ary,i1,i2,poi1_norm,SQmodel,marker="o",s=100,fontsize=fontsize)
-    add_sq_scatter3d_annotation(ax_ary,test_input,tst_out_eng_ary,i1,i2,poi2_norm,SQmodel,marker="*",s=100,fontsize=fontsize)
-
-    ax_ary[:view_init](azim=-76,elev=25)
-
-    ax_ary[:set_xlabel](string(i1),fontsize=fontsize)
-    ax_ary[:set_ylabel](string(i2),fontsize=fontsize)
-    ax_ary[:set_zlabel](string("Reward"),fontsize=fontsize)
-
-    PyPlot.legend()
-else
- error("can't support more than 2 inputs yet")
-end
-
-#  show()
-PyPlot.savefig(string(log_fname,"_",compare,".png"),dpi=300,transparent=true)

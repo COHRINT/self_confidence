@@ -84,13 +84,14 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
 
     ref_dist = (glb_rwd_high-glb_rwd_low)/t_sig
 
-    println("cmu: $(c.μ), tmu: $(t.μ)")
+    println("cmu: $(c.μ), tmu: $(t.μ), rmu: $glb_rwd_high")
     println("cmu_s: $(c.μ-glb_rwd_low), tmu_s: $(t.μ-glb_rwd_low), rmu: $glb_rwd_rng")
     println("csig: $(c_sig), tsig: $(t_sig), rsig: $(t_sig)")
     println("cr: $cr, tr: $tr, rd: $ref_dist")
 
     sq = (cr-tr)/ref_dist
-    #  k = 0.2
+    #  sq = (c.μ-t.μ)/abs(c_sig-t_sig)/ref_dist #decided to try something else for a bit
+    #  k = 1/5
     k = 5.
 
     SQ = general_logistic(sq,k=k,x0=x0,L=L)

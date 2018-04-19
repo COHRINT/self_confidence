@@ -194,7 +194,7 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     return in_data, out_data, table, input_sch, output_sch
 end
 
-function add_sq_scatter3d_annotation(ax_ary::PyCall.PyObject,in::Array,out_eng_ary::Dict,i1::Symbol,i2::Symbol,poi::Array,SQmodel::SQ_model;yval::Symbol=:X3_1,yval_std::Symbol=:X3_2,marker::String="*",s::Int64=100,color=:black,fontsize::Int64=12)
+function add_sq_scatter3d_annotation(ax1::PyCall.PyObject,ax2::PyCall.PyObject,in::Array,out_eng_ary::Dict,i1::Symbol,i2::Symbol,poi::Array,SQmodel::SQ_model;yval::Symbol=:X3_1,yval_std::Symbol=:X3_2,marker::String="*",s::Int64=100,color=:black,fontsize::Int64=12)
     in_eng, pred_outputs = SQ_predict(SQmodel,in,repmat(ones(2,1),1,length(out_eng_ary[yval])),use_eng_units=true)
     display(in_eng)
     #  in_eng, pred_outputs = SQ_predict(SQmodel,reshape(in_ary,size(in_ary,1),1),[1. 1.]',use_eng_units=true)
@@ -222,9 +222,29 @@ function add_sq_scatter3d_annotation(ax_ary::PyCall.PyObject,in::Array,out_eng_a
     #  println(in_eng)
     #  println(pred_outputs)
     sq = X3(Normal(out_eng_ary[yval][x_idx],out_eng_ary[yval_std][x_idx]),Normal(pred_outputs[yval][1],pred_outputs[yval_std][1]),global_rwd_range=rwd_rng)
+    sq_txt = @sprintf("%0.3f",sq)
 
-    ax_ary[:scatter3D](in_eng[i1][x_idx],in_eng[i2][x_idx],out_eng_ary[yval][x_idx],color=color,alpha=0.9,marker=marker,s=s,label="SQ=$(@sprintf("%0.3f",sq))")
-    #  ax_ary[:annotate](@sprintf("test"),xy=[1,1],xytext=[0.5,.5],textcoords="figure fraction",fontsize=fontsize)
+    ax1[:scatter3D](in_eng[i1][x_idx],in_eng[i2][x_idx],out_eng_ary[yval][x_idx],color=color,alpha=0.9,marker=marker,s=s,label="SQ: $sq_txt")
+
+    if marker == "*"
+        ttl = L"\star"
+    elseif marker == "o"
+        ttl = L"\bullet"
+    end
+    println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    println("vals: $([out_eng_ary[yval][x_idx], out_eng_ary[yval_std][x_idx]])")
+    println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    ax2[:errorbar](0.1,pred_outputs[yval][1],pred_outputs[yval_std][x_idx],color=:blue,label="",fmt="o",capsize=3,alpha=0.6)
+    ax2[:errorbar](-0.1,out_eng_ary[yval][x_idx],out_eng_ary[yval_std][x_idx],color=:red,fmt="*",capsize=3,alpha=0.6,label="")
+    ax2[:set_xlim]([-0.2,0.2])
+    ax2[:set_xticklabels]("")
+    #  ax2[:set_ylim](rwd_rng)
+    ax2[:axhline](limits[:X3_1][2])
+    ax2[:axhline](limits[:X3_1][1])
+    ax2[:text](0.8*-0.2,limits[:X3_1][2],L"r_H",fontsize=fontsize,va="top",ha="left")
+    ax2[:text](0.8*0.2,limits[:X3_1][1],L"r_L",fontsize=fontsize,va="bottom",ha="right")
+    #  ax2[:legend]()
+    ax2[:set_title](string(ttl," SQ:$sq_txt"),fontsize=fontsize)
 end
 function norm2(ary::Array)
     n = NaN*ones(1,size(ary,2))
@@ -254,12 +274,12 @@ function nearest_to_x(ary::Array,x::Array;val_and_idx::Bool=false)
     end
 end
 
-function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,preds::Dict,idx::Int64,xvar::Symbol,yvar_mean::Symbol,yvar_std::Symbol,txt_loc::Array,SQmodel::SQ_model;fontsize::Int64=12)
+function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,preds::Dict,idx::Int64,xvar::Symbol,yvar_mean::Symbol,yvar_std::Symbol,SQmodel::SQ_model;fontsize::Int64=12,txt_loc::Array=[])
     #  println("########## Debug Annotation ##########")
     #  idx, idx_val = nearest_to_x(tst_in_eng[xvar],target_val,val_and_idx=true)
     limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
 
-    note_x = x_ary[i1][idx]
+    note_x = x_ary[xvar][idx]
 
     ex_c_m = y_ary[yvar_mean][idx]
     ex_c_s = y_ary[yvar_std][idx]
@@ -271,7 +291,28 @@ function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,preds::Di
 
     ex_X3 = X3(ex_c,ex_t,global_rwd_range=(limits[yvar_mean][1],limits[yvar_mean][2]))
 
-    ax[:annotate](@sprintf("SQ:%0.2f",ex_X3),xy=[note_x,ex_c_m],xytext=txt_loc,textcoords="figure fraction",arrowprops=Dict(:arrowstyle=>"->"),fontsize=fontsize)
+    if isempty(txt_loc)
+        # auto calculate the text location
+        x_lims = (minimum(x_ary[xvar]),maximum(x_ary[xvar]))
+        y_lims = (limits[yvar_mean][1],limits[yvar_mean][2])
+
+        rng_xlims = x_lims[2]-x_lims[1]
+        rng_ylims = y_lims[2]-y_lims[1]
+        note_pct_x = (note_x-x_lims[1])/rng_xlims*1.1
+        note_pct_y = (ex_c_m-y_lims[1])/rng_ylims*1.1
+        txt_loc = [note_pct_x*rng_xlims+x_lims[1],note_pct_y*rng_ylims+y_lims[1]]
+        #  println("##########")
+        #  println("limits: $limits")
+        #  println("nx: $note_x, xlims: $x_lims")
+        #  println("ny: $ex_c_m, ylims: $y_lims")
+        #  #  println("pct_coords: $")
+        #  println("arrow coords: $([note_x,ex_c_m])")
+        #  println("##########")
+    end
+
+
+    ax[:annotate](@sprintf("SQ:%0.2f",ex_X3),xy=[note_x,ex_c_m],xytext=txt_loc,arrowprops=Dict(:arrowstyle=>"->"),fontsize=fontsize)
+    #  ax[:annotate](".",xy=[note_x,ex_c_m],xytext=[0.8,0.],arrowprops=Dict(:arrowstyle=>"->"),fontsize=fontsize)
     #  ax[:errorbar](note_x, ex_t_m,yerr=ex_t_s/2,fmt="o",capsize=3,color=:black,alpha=0.6,label="")
     #  println("########## END Debug Annotation ##########")
 end
@@ -314,33 +355,21 @@ function scatter_with_conf_bnds(ax::PyCall.PyObject,x::Dict,y::Dict,xval::Symbol
     num_xs = length(unq_x)
     if bar
         x_srt2 = sortperm(x[xval])[subsample]
-        ax_ary[:errorbar](x[xval][subsample], y[yval][subsample],yerr=y[yval_std][subsample]/2,fmt="o",capsize=3,color=color,alpha=0.6,label=label)
-
-    #  elseif num_xs < 0.2*length(x[xval])
-        #  # using a categorical/integer variable
-        #  ymat,unq_x,std_val = return_cat_stats(y,yval,x,xval,yval_std,return_std=true)
-        #  x_srt = sortperm(unq_x)
-        #  t_ucl = ymat+std_val
-        #  t_lcl = ymat-std_val
-        #  ax_ary[:scatter](unq_x[x_srt],ymat[x_srt],label=label,color=color)
-        #  ax_ary[:scatter](unq_x[x_srt],t_ucl[x_srt],label="",s=0)
-        #  ax_ary[:scatter](unq_x[x_srt],t_lcl[x_srt],label="",s=0)
-        #  ax_ary[:fill_between](unq_x[x_srt],ymat[x_srt],t_ucl[x_srt],alpha=0.2,color=color)
-        #  ax_ary[:fill_between](unq_x[x_srt],ymat[x_srt],t_lcl[x_srt],alpha=0.2,color=color)
+        ax[:errorbar](x[xval][subsample], y[yval][subsample],yerr=y[yval_std][subsample],fmt="o",capsize=3,color=color,alpha=0.6,label=label)
     else
         x_srt = sortperm(x[xval])[subsample]
 
-        ax_ary[:plot](x[xval][x_srt],y[yval][x_srt],label=label,color=color)
-        t_ucl = y[yval]+y[yval_std]/2
-        t_lcl = y[yval]-y[yval_std]/2
+        ax[:plot](x[xval][x_srt],y[yval][x_srt],label=label,color=color)
+        t_ucl = y[yval]+y[yval_std]
+        t_lcl = y[yval]-y[yval_std]
         #  println(t_ucl)
         #  println(x_srt)
 
-        ax_ary[:scatter](x[xval][x_srt],t_ucl[x_srt],label="",s=0)
-        ax_ary[:scatter](x[xval][x_srt],t_lcl[x_srt],label="",s=0)
+        ax[:scatter](x[xval][x_srt],t_ucl[x_srt],label="",s=0)
+        ax[:scatter](x[xval][x_srt],t_lcl[x_srt],label="",s=0)
 
-        ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_ucl[x_srt],alpha=0.2,color=color)
-        ax_ary[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl[x_srt],alpha=0.2,color=color)
+        ax[:fill_between](x[xval][x_srt],y[yval][x_srt],t_ucl[x_srt],alpha=0.2,color=color)
+        ax[:fill_between](x[xval][x_srt],y[yval][x_srt],t_lcl[x_srt],alpha=0.2,color=color)
     end
 
 end
