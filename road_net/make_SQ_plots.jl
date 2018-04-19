@@ -51,18 +51,41 @@ end
 pygui(false)
 
 # problem setup
-net_type = "transition_vary"
+compare = "ok"
+#  net_type = "n_vary"
+#  net_type = "transition_vary"
 #  net_type = "transition_e_vary"
+net_type = "sense_vary"
+#  inpts = [:exit_distance]
+#  inpts = [:tprob]
+inpts = [:sensor_rwd]
+#  inpts = [:tprob,:e_mcts]
+epocs = 1000
+#  sq_example_locations = [1.0,4.0]
+#  sq_example_locations = [0.25,0.75]
+sq_example_locations = [-15., -150.]
 
 train_fname = "logs/$(net_type)_reference_solver_training.csv"
-test_fname = "logs/$(net_type)_bad_solver.csv"
+test_fname = "logs/$(net_type)_$(compare)_solver.csv"
 
-inputs = Dict(:tprob=>"ML.Continuous")
-#  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
+inputs = Dict()
+for i in inpts
+    inputs[i] = "ML.Continuous"
+end
 outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
 log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
 log_loc = "nn_logs/"
+#  log_path = string(log_loc,"/",log_fname,"_net1-$(epocs)
+
+#  println("##########")
+#  println("$log_fname, $(readdir(log_loc))")
+#  println("##########")
+if !(any([contains(x,string(log_fname,"_")) for x in readdir(log_loc)]))
+    println("No nn file exists, making one now")
+    #  make_sq_model(net_type,inpts)
+    make_sq_model(net_type,inpts,num_epoc=epocs)
+end
 
 param_files = searchdir(log_loc,log_fname,".params")
 
@@ -89,45 +112,56 @@ if length(inputs) == 1
     fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
     fig[:set_size_inches](8.0,6.0)
     fontsize = 15
+    PyPlot.grid()
 
     i1 = collect(keys(inputs))[1]
 
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,oversample=3,label="candidate")
+    idx1 = nearest_to_x(tst_in_eng[i1],sq_example_locations[1])
+    idx2 = nearest_to_x(tst_in_eng[i1],sq_example_locations[2])
+
+    scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=[idx1 idx2],label="candidate",bar=true)
+    #  scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=collect(1:length(tst_in_eng[i1])),label="candidate",bar=true)
+    #  ax_ary[:scatter](tst_in_eng[i1],tst_out_eng_ary[:X3_1],color=:red)
 
     ax_ary[:set_xlabel](string(i1),fontsize=fontsize)
     ax_ary[:set_ylabel](string("Reward"),fontsize=fontsize)
     ax_ary[:axhline](limits[:X3_1][2])
     ax_ary[:axhline](limits[:X3_1][1])
 
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,50,i1,:X3_1,:X3_2,limits,[0.3,0.7],fontsize=fontsize)
-    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,200,i1,:X3_1,:X3_2,limits,[0.65,0.5],fontsize=fontsize)
-    ax_ary[:text](0.5,limits[:X3_1][2],L"r_H",fontsize=fontsize,va="bottom")
-    ax_ary[:text](0.5,limits[:X3_1][1],L"r_L",fontsize=fontsize,va="top")
+    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,idx1,i1,:X3_1,:X3_2,[0.3,0.7],SQmodel,fontsize=fontsize)
+    add_sq_annotation(ax_ary,tst_in_eng,tst_out_eng_ary,pred_outputs,idx2,i1,:X3_1,:X3_2,[0.65,0.5],SQmodel,fontsize=fontsize)
 
-    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue,oversample=8,label="trusted")
+    ax_ary[:text](minimum(tst_in_eng[i1]),limits[:X3_1][2],L"r_H",fontsize=fontsize,va="bottom")
+    ax_ary[:text](minimum(tst_in_eng[i1]),limits[:X3_1][1],L"r_L",fontsize=fontsize,va="top")
+
+    #  ax_ary[:scatter](tst_in_eng[i1],pred_outputs[:X3_1],color=:blue)
+    scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue,subsample=collect(1:8:length(tst_in_eng[i1])),label="trusted",bar=false)
     PyPlot.legend()
 elseif length(inputs) > 1
+    PyPlot.using3D()
     fig,ax_ary = PyPlot.subplots(1,1)
-    fig[:set_size_inches](6.0,6.0)
+    fig[:set_size_inches](8.0,4.0)
     ax_ary = PyPlot.subplot(111,projection="3d")
     fontsize = 15
 
     # make correlation plots
-    i1 = collect(keys(inputs))[1]
-    i2 = collect(keys(inputs))[2]
+    i1 = inpts[1]
+    i2 = inpts[2]
 
     #  corrplot(data_mat)
-    poi1 = 200 # point of interest, where X3 will be calculated
-    poi2 = 101 # point of interest, where X3 will be calculated
+    poi1 = [0.2;200.] # point of interest, where X3 will be calculated
+    poi2 = [0.7;800.] # point of interest, where X3 will be calculated
+    poi1_norm = [(poi1[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi1[2]-mean(input_sch[i2]))/std(input_sch[i2])]
+    poi2_norm = [(poi2[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi2[2]-mean(input_sch[i2]))/std(input_sch[i2])]
     subsample_num = 3
 
     ax_ary[:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],tst_out_eng_ary[:X3_1][1:subsample_num:end],color=:red,alpha=0.2,label="Candidate")
     ax_ary[:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],pred_outputs[:X3_1][1:subsample_num:end],color=:blue,alpha=0.2,label="Trusted")
 
-    add_sq_scatter3d_annotation(ax_ary,test_input[:,poi1],tst_out_eng_ary,i1,i2,poi1,SQmodel,marker="o",s=100,fontsize=fontsize)
-    add_sq_scatter3d_annotation(ax_ary,test_input[:,poi2],tst_out_eng_ary,i1,i2,poi2,SQmodel,marker="*",s=100,fontsize=fontsize)
+    add_sq_scatter3d_annotation(ax_ary,test_input,tst_out_eng_ary,i1,i2,poi1_norm,SQmodel,marker="o",s=100,fontsize=fontsize)
+    add_sq_scatter3d_annotation(ax_ary,test_input,tst_out_eng_ary,i1,i2,poi2_norm,SQmodel,marker="*",s=100,fontsize=fontsize)
 
-    ax_ary[:view_init](azim=11,elev=22)
+    ax_ary[:view_init](azim=-76,elev=25)
 
     ax_ary[:set_xlabel](string(i1),fontsize=fontsize)
     ax_ary[:set_ylabel](string(i2),fontsize=fontsize)
@@ -139,4 +173,4 @@ else
 end
 
 #  show()
-PyPlot.savefig(string(log_fname,".png"),dpi=300,transparent=true)
+PyPlot.savefig(string(log_fname,"_",compare,".png"),dpi=300,transparent=true)
