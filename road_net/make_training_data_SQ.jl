@@ -214,12 +214,10 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
 
             r_dist = []
             with_logger(logger) do
-                # MAKE THIS FUNCTION
-                r_dist = get_reward_distribution(g,mdp,its_vals=its,d_vals=d_mcts,exp_vals=e_mcts,max_steps=steps,
-                               num_repeats=repeats,discounted_rwd=dis_rwd,initial_state=start_state)
+                r_dist = get_reward_distribution(g,mdp,its_vals=its,d_vals=d_mcts,exp_vals=e_mcts,max_steps=steps,num_repeats=repeats,discounted_rwd=dis_rwd,initial_state=start_state)
             end
 
-            @info "calculating X3"
+            @info "calculating X3 data"
             SQ_data = X3(r_dist)
             @debug SQ_data
 
