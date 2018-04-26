@@ -193,8 +193,7 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
             # i'm thinking using the same network multiple times using different discount factors, and transition probabilities, this will do two things: 1) make training data better, 2) increase total amount of training data
             mdp = roadnet_with_pursuer(g,tp=t,d=d)
 
-            # make a "throw the book at it" solver
-            its = [problem[:mcts_its]] # base this on transition probability
+            its = [problem[:mcts_its]] # perhaps base this on transition probability
             d_mcts = [problem[:mcts_depth]]
             e_mcts = [problem[:mcts_e]]
 
