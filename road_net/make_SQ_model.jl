@@ -217,7 +217,7 @@ function add_sq_scatter3d_annotation(ax1::PyCall.PyObject,ax2::PyCall.PyObject,i
 
     limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
     #  println(limits)
-    rwd_rng = (limits[yval][1],limits[yval][2])
+    rwd_rng = [limits[yval][1],limits[yval][2]]
 
     #  println(in_eng)
     #  println(pred_outputs)
@@ -289,7 +289,7 @@ function add_sq_annotation(ax::PyCall.PyObject,x_ary::Dict,y_ary::Dict,preds::Di
     ex_t_s = preds[yvar_std][idx]
     ex_t = Normal(ex_t_m,ex_t_s)
 
-    ex_X3 = X3(ex_c,ex_t,global_rwd_range=(limits[yvar_mean][1],limits[yvar_mean][2]))
+    ex_X3 = X3(ex_c,ex_t,global_rwd_range=[limits[yvar_mean][1],limits[yvar_mean][2]])
 
     if isempty(txt_loc)
         # auto calculate the text location

@@ -37,19 +37,19 @@ function X3(r::Array{Float64})
     return [mean(r) std(r)]
 end
 function X3(c::Array{Float64},t::Array{Float64};
-            global_rwd_range::Tuple{Float64,Float64}=(1.,1.),L::Float64=2.,x0::Float64=0.,
+            global_rwd_range::Array{Float64}=[1.,1.],L::Float64=2.,x0::Float64=0.,
             return_raw_sq::Bool=false)
     c = Normal(mean(c),std(c))
     t = Normal(mean(t),std(t))
     if return_raw_sq
-        (SQ,sq,k) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0)
+        (SQ,sq,k) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq)
         return SQ,sq,k
     else
-        SQ = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0)
+        SQ = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq)
         return SQ
     end
 end
-function X3(c::Distributions.Distribution,t::Distributions.Distribution;
+function X3_old(c::Distributions.Distribution,t::Distributions.Distribution;
             global_rwd_range::Tuple{Float64,Float64}=(-1.,1.),L::Float64=2.,x0::Float64=0.,
             return_raw_sq::Bool=false)
     # using idea of 'standardized moment' https://en.wikipedia.org/wiki/Standardized_moment
@@ -102,6 +102,70 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
     else
         return SQ
     end
+end
+function X3(c::Distributions.Distribution,t::Distributions.Distribution;
+            global_rwd_range::Array{Float64}=[1.],L::Float64=2.,x0::Float64=0.,
+            return_raw_sq::Bool=false)
+
+    # distance between means, in the global scale
+    if length(global_rwd_range) == 1
+        # providing range fraction directly
+        f = global_rwd_range[1]
+    elseif length(global_rwd_range) == 2
+        f = abs(mean(c)-mean(t))/(global_rwd_range[2]-global_rwd_range[1])
+    else
+        error("global_rwd_range length $(length(global_rwd_range)) is not supported")
+    end
+    #  f = abs(mean(c)/std(c)-mean(t)/std(t))/((global_rwd_range[2]-global_rwd_range[1])/std(t))
+
+    # amount of overlap -- 0: identical, 1: no overlap
+    # no sign to indicate `direction' of overlap
+    H = hellinger_normal(c,t)
+    sgn = sign(mean(c)-mean(t))
+
+    #  H_scaled = sgn*(max((1-f)*H,f))
+    H_scaled = sgn*f*sqrt(H)
+    #  H_scaled = sgn*max((1-f)*H,f)
+    #  H_scaled = sgn*(min((1-f)*H,f*H))
+
+    k = 5.
+
+    SQ = general_logistic(H_scaled,k=k,x0=x0,L=L)
+
+    println("###############")
+    println("mu_c/s_c: $(mean(c))/$(std(c)), mu_t/s_t: $(mean(t))/$(std(t))")
+    println("H: $(H), diff_frac: $f, H_scale: $(H_scaled)")
+    println("global rwd: $global_rwd_range")
+    println("SQ: $SQ")
+    println("###############")
+
+    if return_raw_sq
+        return SQ,H_scaled,k
+    else
+        return SQ
+    end
+end
+function hellinger_normal(μ_1::Float64,σ_1::Float64,μ_2::Float64,σ_2::Float64)
+    c = Normal(μ_1,σ_1)
+    t = Normal(μ_2,σ_2)
+    return hellinger_normal(c,t)
+end
+function hellinger_normal(c::Distributions.Distribution,t::Distributions.Distribution)
+    # formula from wikipedia
+    # https://en.wikipedia.org/wiki/Hellinger_distance
+    μ_c = mean(c)
+    σ²_c = var(c)
+    σ_c = std(c)
+
+
+    μ_t = mean(t)
+    σ²_t = var(t)
+    σ_t = std(t)
+
+    H = 1-sqrt(2*σ_c*σ_t/(σ²_c+σ²_t))*exp(-0.25*(μ_c-μ_t)^2/(σ²_c+σ²_t))
+
+    #  return sqrt(H)
+
 end
 
 function X4(rwd::Vector{Float64};threshold::Float64=0.,k::Float64=1.)

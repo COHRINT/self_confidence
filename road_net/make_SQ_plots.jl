@@ -70,10 +70,10 @@ experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_
                        "transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["ok","bad"],:legend_loc=>"lower right"),
                        "transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[],:cmp=>["ok","bad"],:legend_loc=>"lower right")
                       )
-experiment_dict = Dict("transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["bad"],:legend_loc=>"lower right"))
+#  experiment_dict = Dict("transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["bad"],:legend_loc=>"lower right"))
 #  experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["bad"],:legend_loc=>"upper right"))
 #  experiment_dict = Dict("transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["bad"],:legend_loc=>"upper right"))
-
+#  experiment_dict = Dict("sense_vary"=>Dict(:inpts=>[:sensor_rwd],:epocs=>1000,:ex_locs=>[-35.,-150.],:cmp=>["bad"],:legend_loc=>"lower right"))
 
 for expr in keys(experiment_dict)
     net_type = expr
@@ -139,7 +139,7 @@ for expr in keys(experiment_dict)
             idx1 = nearest_to_x(tst_in_eng[i1],sq_example_locations[1])
             idx2 = nearest_to_x(tst_in_eng[i1],sq_example_locations[2])
 
-            scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=[idx1 idx2],label="candidate",bar=true)
+            scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=[idx1 idx2],label="candidate($(compare))",bar=true)
             #  scatter_with_conf_bnds(ax_ary,tst_in_eng,tst_out_eng_ary,i1,:X3_1,:X3_2,:red,subsample=collect(1:length(tst_in_eng[i1])),label="candidate",bar=true)
             #  ax_ary[:scatter](tst_in_eng[i1],tst_out_eng_ary[:X3_1],color=:red,alpha=0.2)
 
@@ -158,7 +158,7 @@ for expr in keys(experiment_dict)
             scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue,subsample=collect(1:8:length(tst_in_eng[i1])),label="trusted",bar=false)
             ax_ary[:legend](loc=legend_loc)
 
-            PyPlot.savefig(string(log_fname,"_",compare,".png"),dpi=300,transparent=true)
+            PyPlot.savefig(string("figs/",log_fname,"_",compare,".pdf"),dpi=300,transparent=true)
         elseif length(inputs) > 1
             PyPlot.using3D()
             ax3 = Array{PyCall.PyObject}(3)
@@ -193,7 +193,7 @@ for expr in keys(experiment_dict)
 
             PyPlot.tight_layout()
 
-            PyPlot.savefig(string(log_fname,"_",compare,".png"),dpi=300,transparent=true)
+            PyPlot.savefig(string("figs/",log_fname,"_",compare,".pdf"),dpi=300,transparent=true)
         else
          error("can't support more than 2 inputs yet")
         end

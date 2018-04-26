@@ -170,7 +170,7 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
             ax_ary[:axvline](x=vline_tick,color="red",lw=1,label="Net. Diam.")
         end
         for i in x_ticks
-            SQ = X3(U[i,:],U[trusted_solver_num,:],global_rwd_range=(minimum(U),maximum(U)))
+            SQ = X3(U[i,:],U[trusted_solver_num,:],global_rwd_range=[minimum(U),maximum(U)])
             println("SQ: $SQ")
             #  @info "X3 at $i: $SQ"
             ax_ary[:annotate]("SQ: $(@sprintf("%0.2f",SQ))",xy=(i,1),size=6)

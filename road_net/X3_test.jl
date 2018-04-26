@@ -38,7 +38,7 @@ trusted_gp = GP(trusted_x,trusted_y,mZero,kern,logObsNoise_trust)       #Fit the
 candidate_gp = GP(candidate_x,candidate_y,mZero,kern,logObsNoise_cand)       #Fit the GP
 
 #  points_of_interest_x = [0.150,0.5,0.84,0.985]
-points_of_interest_x = [0.1485,0.5,0.84,0.985]
+points_of_interest_x = [0.15,0.5,0.84,0.985]
 #  points_of_interest_y = [1.,0.89,1.04,1.116]
 points_of_interest_y = [0.,-0.125,0.03,0.116]
 
@@ -57,7 +57,7 @@ end
 SQ = []
 SQ_raw = []
 Ks = []
-solver_reward_range = [(-0.,50.), (-0.,5.), (-0.,0.5), (-0.,0.005)]
+solver_reward_range = [[-0.,5.], [-0.,0.5], [-0.,0.05], [-0.,0.005]]
 for (c,t) in zip(dist_cand,dist_trust)
 
     sqs = []
@@ -91,7 +91,7 @@ end
 
 p2 = Plots.plot(dist_trust[1],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="A")
 Plots.plot!(dist_cand[1],linecolor=:red,fill=(0,0.2,:red))
-annotate_pct((0.65,0.8),Plots.text(@sprintf("SQ(r=50):%0.3f\nSQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.005)%0.3f",SQ[1][1],SQ[1][2],SQ[1][3],SQ[1][4]),10,:center,:left),p2)
+annotate_pct((0.65,0.8),Plots.text(@sprintf("SQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.05):%0.3f\nSQ(r=0.005)%0.3f",SQ[1][1],SQ[1][2],SQ[1][3],SQ[1][4]),10,:center,:left),p2)
 xlabel!("reward")
 ylabel!("p(rwd)")
 #  annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",SQ[1][1]))",:center,:center),p2)
@@ -99,7 +99,7 @@ ylabel!("p(rwd)")
 
 p3 = Plots.plot(dist_trust[2],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="B")
 Plots.plot!(dist_cand[2],linecolor=:red,fill=(0,0.2,:red))
-annotate_pct((0.15,0.8),Plots.text(@sprintf("SQ(r=50):%0.3f\nSQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.005)%0.3f",SQ[2][1],SQ[2][2],SQ[2][3],SQ[2][4]),10,:center,:left),p3)
+annotate_pct((0.15,0.8),Plots.text(@sprintf("SQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.05):%0.3f\nSQ(r=0.005)%0.3f",SQ[2][1],SQ[2][2],SQ[2][3],SQ[2][4]),10,:center,:left),p3)
 xlabel!("reward")
 ylabel!("p(rwd)")
 #  annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",SQ[2][1]))",:center,:center),p3)
@@ -107,7 +107,7 @@ ylabel!("p(rwd)")
 
 p4 = Plots.plot(dist_trust[3],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="C")
 Plots.plot!(dist_cand[3],linecolor=:red,fill=(0,0.2,:red))
-annotate_pct((0.65,0.8),Plots.text(@sprintf("SQ(r=50):%0.3f\nSQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.005)%0.3f",SQ[3][1],SQ[3][2],SQ[3][3],SQ[3][4]),10,:center,:left),p4)
+annotate_pct((0.65,0.8),Plots.text(@sprintf("SQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.05):%0.3f\nSQ(r=0.005)%0.3f",SQ[3][1],SQ[3][2],SQ[3][3],SQ[3][4]),10,:center,:left),p4)
 xlabel!("reward")
 ylabel!("p(rwd)")
 #  annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",SQ[3][1]))",:center,:center),p4)
@@ -115,7 +115,7 @@ ylabel!("p(rwd)")
 
 p5 = Plots.plot(dist_trust[4],linecolor=:blue,fill=(0,0.2,:blue),legend=false,title="D")
 Plots.plot!(dist_cand[4],linecolor=:red,fill=(0,0.2,:red))
-annotate_pct((0.65,0.8),Plots.text(@sprintf("SQ(r=50):%0.3f\nSQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.005)%0.3f",SQ[4][1],SQ[4][2],SQ[4][3],SQ[4][4]),10,:center,:left),p5)
+annotate_pct((0.65,0.8),Plots.text(@sprintf("SQ(r=5):%0.3f\nSQ(r=0.5):%0.3f\nSQ(r=0.05):%0.3f\nSQ(r=0.005)%0.3f",SQ[4][1],SQ[4][2],SQ[4][3],SQ[4][4]),10,:center,:left),p5)
 xlabel!("reward")
 ylabel!("p(rwd)")
 #  annotate_pct((0.8,0.8),text("SQ: $(@sprintf("%0.3f",SQ[4][1]))",:center,:center),p5)
@@ -148,7 +148,7 @@ Plots.annotate!(0.5,0.5,Plots.text("SQ: $(@sprintf("%0.3f",SQ[3][1]))",10,:cente
 p4notes = Plots.plot(framestyle = :none)
 Plots.annotate!(0.5,0.5,Plots.text("SQ: $(@sprintf("%0.3f",SQ[4][1]))",10,:center,:center))
 
-savefig(p1,"p1.pdf")
+savefig(p1,"figs/p1.pdf")
 paper_layout = Plots.plot(p2,p3,p4,p5,size=(1000,800))
-savefig(paper_layout,"point_compare.pdf")
+savefig(paper_layout,"figs/point_compare.pdf")
 Plots.plot(p1,p2,pe1,p3,pe2,p4,pe3,p5,layout=(4,2),size=(800,800))
