@@ -116,31 +116,28 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
     else
         error("global_rwd_range length $(length(global_rwd_range)) is not supported")
     end
-    #  f = abs(mean(c)/std(c)-mean(t)/std(t))/((global_rwd_range[2]-global_rwd_range[1])/std(t))
 
     # amount of overlap -- 0: identical, 1: no overlap
     # no sign to indicate `direction' of overlap
-    H = hellinger_normal(c,t)
+    #  D = bhattacharyya_normal(c,t)
+    D = hellinger_normal(c,t)
     sgn = sign(mean(c)-mean(t))
 
-    #  H_scaled = sgn*(max((1-f)*H,f))
-    H_scaled = sgn*f*sqrt(H)
-    #  H_scaled = sgn*max((1-f)*H,f)
-    #  H_scaled = sgn*(min((1-f)*H,f*H))
+    D_scaled = sgn*f*D
 
     k = 5.
 
-    SQ = general_logistic(H_scaled,k=k,x0=x0,L=L)
+    SQ = general_logistic(D_scaled,k=k,x0=x0,L=L)
 
     println("###############")
     println("mu_c/s_c: $(mean(c))/$(std(c)), mu_t/s_t: $(mean(t))/$(std(t))")
-    println("H: $(H), diff_frac: $f, H_scale: $(H_scaled)")
+    println("D: $(D), diff_frac: $f, D_scale: $(D_scaled)")
     println("global rwd: $global_rwd_range")
     println("SQ: $SQ")
     println("###############")
 
     if return_raw_sq
-        return SQ,H_scaled,k
+        return SQ,D_scaled,k
     else
         return SQ
     end
@@ -162,9 +159,27 @@ function hellinger_normal(c::Distributions.Distribution,t::Distributions.Distrib
     σ²_t = var(t)
     σ_t = std(t)
 
-    H = 1-sqrt(2*σ_c*σ_t/(σ²_c+σ²_t))*exp(-0.25*(μ_c-μ_t)^2/(σ²_c+σ²_t))
+    H² = 1-sqrt(2*σ_c*σ_t/(σ²_c+σ²_t))*exp(-0.25*(μ_c-μ_t)^2/(σ²_c+σ²_t))
+    H = sqrt(H²)
 
     #  return sqrt(H)
+
+end
+
+function bhattacharyya_normal(μ_1::Float64,σ_1::Float64,μ_2::Float64,σ_2::Float64)
+    c = Normal(μ_1,σ_1)
+    t = Normal(μ_2,σ_2)
+    return bhattacharyya_normal(c,t)
+end
+function bhattacharyya_normal(c::Distributions.Distribution,t::Distributions.Distribution)
+    μ_c = mean(c)
+    σ²_c = var(c)
+
+
+    μ_t = mean(t)
+    σ²_t = var(t)
+
+    D = 1/4*log(1/4*(σ²_c/σ²_t + σ²_t/σ²_c + 2)) + 1/4*((μ_c-μ_t)^2/(σ²_c/σ²_t))
 
 end
 

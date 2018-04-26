@@ -180,7 +180,7 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         ax_ary[:set_xticks](x_ticks)
         ax_ary[:xaxis][:set_ticklabels](x_lbls)
         ax_ary[:set_xlabel]("MCTS Depth")
-        ax_ary[:legend](loc=1,bbox_to_anchor=(1.0,1.15))
+        #  ax_ary[:legend](loc=1,bbox_to_anchor=(1.0,1.15))
         ax_ary[:set_title]("Reward vs. MCTS Depth")
     end
 

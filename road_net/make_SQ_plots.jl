@@ -50,21 +50,6 @@ end
 ## if they plot to gui, they don't have the size specified in teh code
 pygui(false)
 
-# problem setup
-#  compare = "ok"
-#  net_type = "n_vary"
-#  net_type = "transition_vary"
-#  net_type = "transition_e_vary"
-#  net_type = "sense_vary"
-#  inpts = [:exit_distance]
-#  inpts = [:tprob]
-#  inpts = [:sensor_rwd]
-#  inpts = [:tprob,:e_mcts]
-#  epocs = 1000
-#  sq_example_locations = [1.0,4.0]
-#  sq_example_locations = [0.25,0.75]
-#  sq_example_locations = [-15., -150.]
-
 experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["ok","bad"],:legend_loc=>"upper right"),
                        "sense_vary"=>Dict(:inpts=>[:sensor_rwd],:epocs=>1000,:ex_locs=>[-35.,-150.],:cmp=>["ok","bad"],:legend_loc=>"lower right"),
                        "transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["ok","bad"],:legend_loc=>"lower right"),

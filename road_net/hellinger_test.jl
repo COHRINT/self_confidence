@@ -9,7 +9,7 @@ include("self_confidence.jl")
 pygui(false)
 
 function hellinger_surf(m_rng::Float64,s1::Float64;m2::Float64=0.,s2::Float64=1.)
-    return sqrt(hellinger_normal(m_rng,s1,m2,s2))
+    return hellinger_normal(m_rng,s1,m2,s2)
 end
 function sq_surf(m_rng::Float64,f_rng::Float64;s1::Float64=1.,m2::Float64=0.,s2::Float64=1.,return_raw_sq::Bool=false)
     SQ = X3(Normal(m_rng,s1),Normal(m2,s2),global_rwd_range=[f_rng],return_raw_sq=return_raw_sq)
