@@ -123,7 +123,7 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
     D = hellinger_normal(c,t)
     sgn = sign(mean(c)-mean(t))
 
-    D_scaled = sgn*f*D
+    D_scaled = sgn*sqrt(f)*D
 
     k = 5.
 

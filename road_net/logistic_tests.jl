@@ -25,7 +25,7 @@ ax[:set_ylabel]("y",size=fontsize)
 
 for i = 1:length(ks)
     k = ks[i]
-    k_str = LaTeXString(@sprintf("\$k=%0.1f\$",k))
+    k_str = LaTeXString(@sprintf("\$k=%0.2f\$",k))
     x_str = LaTeXString(@sprintf("\$x_{sat}\\approx %0.2f\$",5/k))
     lbl = LaTeXString("$k_str, $x_str")
     #  println(lbl)
@@ -35,6 +35,6 @@ end
 fig[:tight_layout]()
 ax[:legend]()
 show()
-PyPlot.savefig("logistic_saturation.png",dpi=300,transparent=true)
+PyPlot.savefig("figs/logistic_saturation.pdf",dpi=300,transparent=true)
 
 # conclusions, x_saturation (the x at which the logistic reaches its limit, is approximately equal to 5*k, or choose k=5/x_sat for saturation at x_sat
