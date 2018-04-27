@@ -1,6 +1,6 @@
 @everywhere using Roadnet_MDP
 @everywhere importall POMDPs, POMDPToolbox
-@everywhere MCTS
+@everywhere using MCTS
 @everywhere include("roadnet_pursuer_generator_MDP.jl")
 @everywhere using ProgressMeter
 @everywhere using PyPlot
@@ -46,7 +46,7 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     end
     @debug "Total number of solvers being tested:" length(policy_tilde)
 
-    starting_state = roadnet_pursuer_state(1,4)
+    initial_state = roadnet_pursuer_state(1,4)
 
     function reward_grab(mdp::roadnet_with_pursuer,policy::MCTS.MCTSPlanner,hist::HistoryRecorder,s::roadnet_pursuer_state;discounted::Bool=true,return_hist::Bool=false)
         hist = simulate(hist,mdp,policy,s)
@@ -296,7 +296,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 150 # number of steps the simulation runs
-    repeats = 5 # how many times to repeat each simlation
+    repeats = 2 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
