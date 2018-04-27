@@ -228,7 +228,8 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         @info "displaying plot(s)"
         show()
     else
-        ax_ary[:set_title]("Reward Vs. MCTS Depth")
+        ttl_str = "$dis_str vs MCTS depth\nTrans_prob = $(mdp.tprob), MCTS Parameters: N = $its_vals, e=$exp_vals\nD= $d_vals\nBased on $num_repeats separate simulations"
+        ax_ary[:set_title](ttl_str)
         fig[:tight_layout]()
         @info "saving plot(s) to file"
         @info "filename: $img_fname"
@@ -302,14 +303,14 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     ext_rwd = 4000.
     cgt_rwd = -2000.
 
-    g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-50.)
-    mdp = roadnet_with_pursuer(g,tp=0.95,d=0.95)
+    g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
+    mdp = roadnet_with_pursuer(g,tp=0.7,d=0.95)
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
-    its_rng = [100]
-    #  e_vals = [(ext_rwd-cgt_rwd)*0.50]
-    e_vals = [5.]
+    its_rng = [1000]
+    e_vals = [(ext_rwd-cgt_rwd)*0.50]
+    #  e_vals = [5.]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     #  d_rng = collect(1:3:30)
     d_rng = collect(1:3:30)
