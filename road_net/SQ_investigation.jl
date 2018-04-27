@@ -110,21 +110,21 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     # @save "data/$(num_repeats)_$(DateTime(now())).jld2" its_axis d_axis utilities mean(utilities,2)[:] max_steps U ST IA DA
     #  JLD2.save("data/$(num_repeats)_$(DateTime(now())).jld2",Dict("its_axis" => its_axis,
              #  "d_axis" => d_axis,"utilities" => utilities,"u_vals" => mean(utilities,2)[:],
-             #  "max_steps" => max_steps,"U" => U, "ST" => ST,"IA" => IA,"DA" => DA))
+             #  "max_steps" => max_steps,"R" => R, "ST" => ST,"IA" => IA,"DA" => DA))
     JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,"d_axis",d_axis,"rewards",rewards,
-         "u_vals",mean(rewards,2),"max_steps",max_steps,"U",U,"ST",ST,"IA",IA,"DA",DA)
+         "u_vals",mean(rewards,2),"max_steps",max_steps,"R",R,"ST",ST,"IA",IA,"DA",DA)
 
     ####### Plotting #######
     ## Reward vs d
-    D = [its_axis d_axis mean(rewards,2)]
-    D2 = [IA[:] DA[:] U[:]]
-    if length(unique(U[:])) == 1
+    D = [its_axis d_axis mean(R,2)]
+    D2 = [IA[:] DA[:] R[:]]
+    if length(unique(R[:])) == 1
         # plots will fail, because there aren't enough unique y's
         @warn "not enough unique y's, exiting without producing plots"
         return
     end
 
-    #  @debug "IA $IA\nDA $DA\nU $U"
+    #  @debug "IA $IA\nDA $DA\nR $R"
     #  @debug "D2 $D2"
     #  @debug "$(D2[:,2]), $(D2[:,3])"
 
@@ -139,10 +139,10 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
 
         @debug typeof(x_vals) size(x_vals)
         @debug typeof(x_ticks) size(x_ticks) x_ticks
-        @debug typeof(U) size(U)
+        @debug typeof(R) size(R)
         # points = # of points where the Kernel Density Estimator is estimated
         # bw_method = bandwidth of the KDE
-        ax_ary[1][:violinplot](U',x_ticks,widths=0.5,points=100,showmedians=true)
+        ax_ary[1][:violinplot](R',x_ticks,widths=0.5,points=100,showmedians=true)
         ax_ary[1][:axvline](x=vline_tick,color="red",lw=1)
 
         ax_ary[2][:violinplot](ST',x_ticks,widths=0.5,points=100,showmedians=true)
@@ -170,13 +170,13 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
 
         # points = # of points where the Kernel Density Estimator is estimated
         # bw_method = bandwidth of the KDE
-        @info "shape of U is: $(size(U))"
+        @info "shape of R is: $(size(R))"
         @info "x_ticks: $x_ticks"
         @info "network diameter = $(mdp.road_net.gprops[:net_stats].diam)"
         @info "vline tick_location= $vline_tick"
         trusted_solver_num = 9
-        ax_ary[:violinplot](U[1:end .!= trusted_solver_num,:]',x_ticks[1:end .!= trusted_solver_num],widths=0.5,points=100,showmedians=true)
-        trusted_violin = ax_ary[:violinplot](U[trusted_solver_num,:]',[x_ticks[trusted_solver_num]],widths=0.5,points=100,showmedians=true)
+        ax_ary[:violinplot](R[1:end .!= trusted_solver_num,:]',x_ticks[1:end .!= trusted_solver_num],widths=0.5,points=100,showmedians=true)
+        trusted_violin = ax_ary[:violinplot](R[trusted_solver_num,:]',[x_ticks[trusted_solver_num]],widths=0.5,points=100,showmedians=true)
         #  @info trusted_violin["bodies"]
         #  for pc in trusted_violin["bodies"]
             #  pc.set_facecolor("red")
@@ -188,7 +188,8 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
             ax_ary[:axvline](x=vline_tick,color="red",lw=1,label="Net. Diam.")
         end
         for i in x_ticks
-            SQ = X3(U[i,:],U[trusted_solver_num,:],global_rwd_range=[minimum(U),maximum(U)])
+            #  display(R[i,:])
+            SQ = X3(R[i,:],R[trusted_solver_num,:],global_rwd_range=[minimum(R),maximum(R)])
             println("SQ: $SQ")
             #  @info "X3 at $i: $SQ"
             ax_ary[:annotate]("SQ: $(@sprintf("%0.2f",SQ))",xy=(i,1),size=6)
@@ -236,7 +237,7 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
-    its_rng = [10]
+    its_rng = [1000]
     #  e_vals = [5.]
     e_vals = [(ext_rwd-cgt_rwd)*0.25]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
@@ -284,7 +285,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     cgt_rwd = -2000.
 
     g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
-    mdp = roadnet_with_pursuer(g,tp=0.5,d=0.9)
+    mdp = roadnet_with_pursuer(g,tp=0.7,d=0.95)
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
@@ -296,7 +297,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 150 # number of steps the simulation runs
-    repeats = 2 # how many times to repeat each simlation
+    repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
