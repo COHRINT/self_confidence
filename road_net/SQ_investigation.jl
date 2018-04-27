@@ -1,13 +1,15 @@
-using MCTS
-using PyPlot
-using ProgressMeter
-using JLD
-using MicroLogging
-using Base.Markdown
-include("roadnet_pursuer_generator_MDP.jl")
-include("road_net_visualize.jl")
-include("utilities.jl")
-include("self_confidence.jl")
+@everywhere using Roadnet_MDP
+@everywhere importall POMDPs, POMDPToolbox
+@everywhere MCTS
+@everywhere include("roadnet_pursuer_generator_MDP.jl")
+@everywhere using ProgressMeter
+@everywhere using PyPlot
+@everywhere using JLD
+@everywhere using MicroLogging
+@everywhere using Base.Markdown
+@everywhere include("road_net_visualize.jl")
+@everywhere include("utilities.jl")
+@everywhere include("self_confidence.jl")
 
 function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int64=25,
                         its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],exp_vals::Array{Float64}=[5.],
@@ -64,27 +66,42 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     IA = repmat(its_axis,1,num_repeats)
     DA = repmat(d_axis,1,num_repeats)
     @debug "PT $(size(PT)),HT $(size(HT)),IA $(size(IA)),DA $(size(DA))"
-    utilities = Array{Float64}(size(PT))
+    rewards = Array{Float64}(size(PT))
     sim_time = Array{Int64}(size(PT))
     idx = 1
 
     @info md"# Simulations"
     tic()
-    pm = Progress(length(PT[:]),1)
-    for (p,h) in zip(PT,HT)
-        @info "Running Simulations" progress=idx/length(PT)
-        utilities[idx] = reward_grab(mdp,p,h,starting_state,discounted=discounted_rwd)
-        hist = reward_grab(mdp,p,h,starting_state,discounted=discounted_rwd,return_hist=true)
-        sim_time[idx] = length(hist)
-        if false
-          @debug print_hist(mdp,hist)
+    if nprocs() > 1
+        q = []
+        for pol in PT
+            value = Sim(mdp,pol,initial_state,max_steps=max_steps)
+            push!(q,value)
         end
-        next!(pm)
-        idx += 1
+        sim_results = run_parallel(q) do sim,hist
+            display(discounted_reward(hist))
+            return [:steps=>n_steps(hist), :reward=>discounted_reward(hist)]
+        end
+
+        rewards = [float(x) for x in sim_results[:reward]] #need to convert to float, because sim_results[:reward] is a union of floats and missing values, even though there aren't any missing values...
+
+    else
+        pm = Progress(length(PT[:]),1)
+        for (p,h) in zip(PT,HT)
+            @info "Running Simulations" progress=idx/length(PT)
+            rewards[idx] = reward_grab(mdp,p,h,initial_state,discounted=discounted_rwd)
+            hist = reward_grab(mdp,p,h,initial_state,discounted=discounted_rwd,return_hist=true)
+            sim_time[idx] = length(hist)
+            if false
+              @debug print_hist(mdp,hist)
+            end
+            next!(pm)
+            idx += 1
+        end
     end
     @info "Completed $(length(PT)) Simulations in $(toq()) seconds"
 
-    U = reshape(utilities,length(its_axis),:)
+    R = reshape(rewards,length(its_axis),:)
     ST = reshape(sim_time,length(its_axis),:)
 
     # Save off data
@@ -93,12 +110,12 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     #  JLD2.save("data/$(num_repeats)_$(DateTime(now())).jld2",Dict("its_axis" => its_axis,
              #  "d_axis" => d_axis,"utilities" => utilities,"u_vals" => mean(utilities,2)[:],
              #  "max_steps" => max_steps,"U" => U, "ST" => ST,"IA" => IA,"DA" => DA))
-    JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,"d_axis",d_axis,"utilities",utilities,
-         "u_vals",mean(utilities,2),"max_steps",max_steps,"U",U,"ST",ST,"IA",IA,"DA",DA)
+    JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,"d_axis",d_axis,"rewards",rewards,
+         "u_vals",mean(rewards,2),"max_steps",max_steps,"U",U,"ST",ST,"IA",IA,"DA",DA)
 
     ####### Plotting #######
     ## Reward vs d
-    D = [its_axis d_axis mean(utilities,2)]
+    D = [its_axis d_axis mean(rewards,2)]
     D2 = [IA[:] DA[:] U[:]]
     if length(unique(U[:])) == 1
         # plots will fail, because there aren't enough unique y's
@@ -271,7 +288,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 150 # number of steps the simulation runs
-    repeats = 250 # how many times to repeat each simlation
+    repeats = 5 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
