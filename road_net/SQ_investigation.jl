@@ -1,4 +1,5 @@
 @everywhere using Roadnet_MDP
+@everywhere using DataFrames, Query
 @everywhere importall POMDPs, POMDPToolbox
 @everywhere using MCTS
 @everywhere include("roadnet_pursuer_generator_MDP.jl")
@@ -70,22 +71,35 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     rewards = Array{Float64}(size(PT))
     sim_time = Array{Int64}(size(PT))
     idx = 1
+    R = zeros(size(DA))
 
     @info md"# Simulations"
     tic()
     if nprocs() > 1
         q = []
         for pol in PT
-            value = Sim(mdp,pol,initial_state,max_steps=max_steps)
+            value = Sim(mdp,pol,initial_state,max_steps=max_steps,metadata=Dict(:d=>pol.solver.depth))
             push!(q,value)
         end
+        #  sim_results = run_parallel(q)
         sim_results = run_parallel(q) do sim,hist
-            display(discounted_reward(hist))
-            return [:steps=>n_steps(hist), :reward=>discounted_reward(hist)]
+            if !discounted_rwd
+                return [:steps=>length(hist), :reward=>undiscounted_reward(hist)]
+            else
+                return [:steps=>length(hist), :reward=>undiscounted_reward(hist)]
+            end
         end
+        println(sim_results)
 
-        rewards = [float(x) for x in sim_results[:reward]] #need to convert to float, because sim_results[:reward] is a union of floats and missing values, even though there aren't any missing values...
-
+        for k = 1:length(d_vals)
+            i = d_vals[k]
+            di = @from r in sim_results begin
+                 @where r.d == i
+                 @select {r.reward}
+                 @collect DataFrame
+             end
+            R[k,:] = [float(x) for x in di[:reward]] #need to convert to float, because sim_results[:reward] is a union of floats and missing values, even though there aren't any missing values...
+        end
     else
         pm = Progress(length(PT[:]),1)
         for (p,h) in zip(PT,HT)
@@ -94,15 +108,15 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
             hist = reward_grab(mdp,p,h,initial_state,discounted=discounted_rwd,return_hist=true)
             sim_time[idx] = length(hist)
             if false
-              @debug print_hist(mdp,hist)
+              @info print_hist(mdp,hist)
             end
             next!(pm)
             idx += 1
         end
+        R = reshape(rewards,length(its_axis),:)
     end
     @info "Completed $(length(PT)) Simulations in $(toq()) seconds"
 
-    R = reshape(rewards,length(its_axis),:)
     ST = reshape(sim_time,length(its_axis),:)
 
     # Save off data
@@ -116,7 +130,11 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
 
     ####### Plotting #######
     ## Reward vs d
-    D = [its_axis d_axis mean(R,2)]
+    #  D = [its_axis d_axis mean(R,2)]
+    println("!!!!!!!!!!!!!!!!!!")
+    println("min R: $(minimum(R)), max R: $(maximum(R))")
+    println("!!!!!!!!!!!!!!!!!!")
+
     D2 = [IA[:] DA[:] R[:]]
     if length(unique(R[:])) == 1
         # plots will fail, because there aren't enough unique y's
@@ -192,7 +210,7 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
             SQ = X3(R[i,:],R[trusted_solver_num,:],global_rwd_range=[minimum(R),maximum(R)])
             println("SQ: $SQ")
             #  @info "X3 at $i: $SQ"
-            ax_ary[:annotate]("SQ: $(@sprintf("%0.2f",SQ))",xy=(i,1),size=6)
+            ax_ary[:annotate]("SQ: $(@sprintf("%0.2f",SQ))",xy=(i,mean(R[i,:])),size=6)
         end
 
         ax_ary[:set_ylabel]("$dis_str")
@@ -238,8 +256,8 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
     its_rng = [100]
-    e_vals = [5.]
-    #  e_vals = [(ext_rwd-cgt_rwd)*0.25]
+    #  e_vals = [5.]
+    e_vals = [(ext_rwd-cgt_rwd)*0.25]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     d_rng = collect(1:10)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
