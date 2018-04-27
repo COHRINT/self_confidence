@@ -1,8 +1,17 @@
+if nworkers() < 5
+    nw = 150
+    println("Adding $nw workers...")
+    addprocs(nw, topology=:master_slave)
+    println("done")
+end
+
+println("including libraries")
 @everywhere using Roadnet_MDP
 @everywhere importall POMDPs, POMDPToolbox
 @everywhere include("make_training_nets.jl")
 @everywhere include("make_training_data_SQ.jl")
 @everywhere include("send_mail.jl")
+println("done")
 
 fname = "net_transition_sense_vary"
 train_txt = "_reference_solver_training"

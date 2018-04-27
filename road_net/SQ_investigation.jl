@@ -10,6 +10,7 @@
 @everywhere include("road_net_visualize.jl")
 @everywhere include("utilities.jl")
 @everywhere include("self_confidence.jl")
+@everywhere include("send_mail.jl")
 
 function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int64=25,
                         its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],exp_vals::Array{Float64}=[5.],
@@ -259,6 +260,13 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
         write(f,logtxt)
         close(f)
     end
+    if on_gcloud()
+        #if we're on Google cloud, then send an email when code is done
+        hname = on_gcloud(return_name=true)
+        body = "The code on $hname has finished running"
+        subject = "Done running code on $hname"
+        send_mail(subject,body)
+    end
 end
 
 function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,img_fname="logs/$(now()).png")
@@ -303,5 +311,13 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
         logtxt = replace(logtxt, r"^\e\[1m\e\[..m(.- )\e\[39m\e\[22m", s"\1")
         write(f,logtxt)
         close(f)
+    end
+
+    if on_gcloud()
+        #if we're on Google cloud, then send an email when code is done
+        hname = on_gcloud(return_name=true)
+        body = "The code on $hname has finished running"
+        subject = "Done running code on $hname"
+        send_mail(subject,body)
     end
 end
