@@ -244,7 +244,7 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
     d_rng = collect(1:10)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
-    steps = 75 # number of steps the simulation runs
+    steps = 100 # number of steps the simulation runs
     repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
@@ -281,23 +281,24 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
         configure_logging(min_level=loglvl)
     end
 
-    ext_rwd = 2000.
+    ext_rwd = 4000.
     cgt_rwd = -2000.
 
-    g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
-    mdp = roadnet_with_pursuer(g,tp=0.7,d=0.95)
+    g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-50.)
+    mdp = roadnet_with_pursuer(g,tp=0.95,d=0.95)
 
     #  its_rng = (1., 10000.)
     #  its_rng = collect(100:100:1000)
     its_rng = [100]
     #  e_vals = [(ext_rwd-cgt_rwd)*0.50]
-    e_vals = [1000.]
+    e_vals = [5.]
     #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
+    #  d_rng = collect(1:3:30)
     d_rng = collect(1:3:30)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
-    steps = 150 # number of steps the simulation runs
-    repeats = 100 # how many times to repeat each simlation
+    steps = 250 # number of steps the simulation runs
+    repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
