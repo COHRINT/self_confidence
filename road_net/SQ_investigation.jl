@@ -83,11 +83,8 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         end
         #  sim_results = run_parallel(q)
         sim_results = run_parallel(q) do sim,hist
-            if !discounted_rwd
-                return [:steps=>length(hist), :reward=>undiscounted_reward(hist)]
-            else
-                return [:steps=>length(hist), :reward=>undiscounted_reward(hist)]
-            end
+            println("results: steps--$(length(hist)), rwds--$(undiscounted_reward(hist))")
+            return [:steps=>n_steps(hist), :reward=>undiscounted_reward(hist)]
         end
         println(sim_results)
 
@@ -300,7 +297,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
         configure_logging(min_level=loglvl)
     end
 
-    ext_rwd = 4000.
+    ext_rwd = 2000.
     cgt_rwd = -2000.
 
     g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
@@ -316,8 +313,8 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     d_rng = collect(1:3:30)
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
-    steps = 250 # number of steps the simulation runs
-    repeats = 250 # how many times to repeat each simlation
+    steps = 50 # number of steps the simulation runs
+    repeats = 5 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
