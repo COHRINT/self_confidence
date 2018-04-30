@@ -1,10 +1,10 @@
+@everywhere using PyPlot
 @everywhere using Roadnet_MDP
 @everywhere using DataFrames, Query
-@everywhere importall POMDPs, POMDPToolbox
+@everywhere using POMDPToolbox
 @everywhere using MCTS
 @everywhere include("roadnet_pursuer_generator_MDP.jl")
 @everywhere using ProgressMeter
-@everywhere using PyPlot
 @everywhere using JLD
 @everywhere using MicroLogging
 @everywhere using Base.Markdown
@@ -38,7 +38,8 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     for i in 1:length(its_vals)
         for d in d_vals
             its = its_vals[i]
-            s = MCTSSolver(n_iterations=its,depth=d,exploration_constant=exp_vals[i],enable_tree_vis=true)
+            #  s = MCTSSolver(n_iterations=its,depth=d,exploration_constant=exp_vals[i],enable_tree_vis=true)
+            s = MCTSSolver(n_iterations=its,depth=d,exploration_constant=exp_vals[i],enable_tree_vis=false)
             push!(its_axis,its)
             push!(d_axis,d)
             push!(policy_tilde,solve(s,mdp))
@@ -81,12 +82,14 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
             value = Sim(mdp,pol,initial_state,max_steps=max_steps,metadata=Dict(:d=>pol.solver.depth))
             push!(q,value)
         end
-        #  sim_results = run_parallel(q)
         sim_results = run_parallel(q) do sim,hist
-            println("results: steps--$(length(hist)), rwds--$(undiscounted_reward(hist))")
-            return [:steps=>n_steps(hist), :reward=>undiscounted_reward(hist)]
+            if discounted_rwd
+                return [:steps=>n_steps(hist), :reward=>discounted_reward(hist)]
+            else
+                return [:steps=>n_steps(hist), :reward=>undiscounted_reward(hist)]
+            end
         end
-        println(sim_results)
+        #  println(sim_results)
 
         for k = 1:length(d_vals)
             i = d_vals[k]
@@ -314,7 +317,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
     #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 50 # number of steps the simulation runs
-    repeats = 5 # how many times to repeat each simlation
+    repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
     with_logger(logger) do
