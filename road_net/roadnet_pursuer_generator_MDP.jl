@@ -1,4 +1,4 @@
-using POMDPs, BasicPOMCP, POMDPToolbox
+using POMDPs, POMDPToolbox
 using MetaGraphs
 using Distributions, StatsBase
 using Roadnet_MDP
