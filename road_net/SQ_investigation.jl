@@ -15,7 +15,7 @@
 
 function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int64=25,
                         its_vals::Array{Int64}=[5],d_vals::Array{Int64}=[2],exp_vals::Array{Float64}=[5.],
-                        num_repeats::Int64=10,discounted_rwd::Bool=true,img_fname::String="test.png")
+                        num_repeats::Int64=10,discounted_rwd::Bool=true,data_fname::String="data/test")
     rnet = mdp.road_net.gprops[:net_stats]
     net_diam = rnet.diam
 
@@ -125,7 +125,7 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
     #  JLD2.save("data/$(num_repeats)_$(DateTime(now())).jld2",Dict("its_axis" => its_axis,
              #  "d_axis" => d_axis,"utilities" => utilities,"u_vals" => mean(utilities,2)[:],
              #  "max_steps" => max_steps,"R" => R, "ST" => ST,"IA" => IA,"DA" => DA))
-    JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,"d_axis",d_axis,"rewards",rewards,
+     JLD.save("$data_fname.jld","its_axis",its_axis,"d_axis",d_axis,"rewards",rewards,
          "u_vals",mean(rewards,2),"max_steps",max_steps,"R",R,"ST",ST,"IA",IA,"DA",DA)
 
     ####### Plotting #######
@@ -232,12 +232,12 @@ function run_experiment(g::MetaGraph, mdp::roadnet_with_pursuer; max_steps::Int6
         ax_ary[:set_title](ttl_str)
         fig[:tight_layout]()
         @info "saving plot(s) to file"
-        @info "filename: $img_fname"
-        PyPlot.savefig(img_fname,dpi=300,transparent=true)
+        @info "filename: $data_fname"
+        PyPlot.savefig("$data_fname.pdf",dpi=300,transparent=true)
     end
 end
 
-function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,img_fname="logs/$(now()).png")
+function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,data_fname="",its_rng::Array{Int64}=[100],e_vals::Array{Float64}=[5.],send_mail_when_done::Bool=true)
     #### Logging
     if logtofile
         buffer = IOBuffer()
@@ -254,22 +254,18 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
     g = original_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
     mdp = roadnet_with_pursuer(g,tp=0.7,d=0.9)
 
-    #  its_rng = (1., 10000.)
-    #  its_rng = collect(100:100:1000)
-    its_rng = [100]
-    #  e_vals = [5.]
-    e_vals = [(ext_rwd-cgt_rwd)*0.25]
-    #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
     d_rng = collect(1:10)
-    #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
-    #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
     steps = 100 # number of steps the simulation runs
     repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
+    if data_fname == ""
+        data_fname = "data/sq_roadnet_mcts_i$(its_rng[1])e$(Int(e_vals[1]))"
+    end
+
     with_logger(logger) do
         run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,exp_vals=e_vals,max_steps=steps,
-                       num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
+                       num_repeats=repeats,discounted_rwd=dis_rwd,data_fname=data_fname)
     end
 
     if logtofile
@@ -280,7 +276,7 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
         write(f,logtxt)
         close(f)
     end
-    if on_gcloud()
+    if on_gcloud() && send_mail_when_done
         #if we're on Google cloud, then send an email when code is done
         hname = on_gcloud(return_name=true)
         body = "The code on $hname has finished running"
@@ -289,7 +285,7 @@ function main(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglv
     end
 end
 
-function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,img_fname="logs/$(now()).png")
+function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,data_fname="",its_rng::Array{Int64}=[1000],e_vals::Array{Float64}=[5.],send_mail_when_done::Bool=true)
     #### Logging
     if logtofile
         buffer = IOBuffer()
@@ -306,23 +302,18 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
     g = medium_roadnet(exit_rwd=ext_rwd,caught_rwd=cgt_rwd,sensor_rwd=-200.)
     mdp = roadnet_with_pursuer(g,tp=0.7,d=0.95)
 
-    #  its_rng = (1., 10000.)
-    #  its_rng = collect(100:100:1000)
-    its_rng = [1000]
-    e_vals = [(ext_rwd-cgt_rwd)*0.50]
-    #  e_vals = [5.]
-    #  d_rng = (1, 2*mdp.road_net.gprops[:net_stats].diam)
-    #  d_rng = collect(1:3:30)
     d_rng = collect(1:3:30)
-    #  its_vals = Int.(round.(latin_hypercube_sampling([its_rng[1]],[its_rng[2]],25)))
-    #  d_vals = Int.(round.(latin_hypercube_sampling([d_rng[1]],[d_rng[2]],10)))
-    steps = 50 # number of steps the simulation runs
+    steps = 100 # number of steps the simulation runs
     repeats = 250 # how many times to repeat each simlation
     dis_rwd = false
 
+    if data_fname == ""
+        data_fname = "data/sq_mednet_mcts_i$(its_rng[1])e$(Int(e_vals[1]))"
+    end
+
     with_logger(logger) do
         run_experiment(g,mdp,its_vals=its_rng,d_vals=d_rng,exp_vals=e_vals,max_steps=steps,
-                       num_repeats=repeats,discounted_rwd=dis_rwd,img_fname=img_fname)
+                       num_repeats=repeats,discounted_rwd=dis_rwd,data_fname=data_fname)
     end
 
     if logtofile
@@ -334,7 +325,7 @@ function main2(;logtofile::Bool=false, logfname::String="logs/$(now()).log",logl
         close(f)
     end
 
-    if on_gcloud()
+    if on_gcloud() && send_mail_when_done
         #if we're on Google cloud, then send an email when code is done
         hname = on_gcloud(return_name=true)
         body = "The code on $hname has finished running"
