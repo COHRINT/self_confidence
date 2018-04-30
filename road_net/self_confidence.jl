@@ -39,8 +39,23 @@ end
 function X3(c::Array{Float64},t::Array{Float64};
             global_rwd_range::Array{Float64}=[1.,1.],L::Float64=2.,x0::Float64=0.,
             return_raw_sq::Bool=false)
-    c = Normal(mean(c),std(c))
-    t = Normal(mean(t),std(t))
+    sc = std(c)
+    st = std(t)
+    if sc == 0.
+        # if std == 0, replace it with a very small one
+        # helps get past some strange simulation conditions where every outcome is identical
+        sc = abs(0.001 * mean(c))
+        println("std(c) too small replacing with:")
+        println("mean:$(mean(c)), std:$(sc)")
+    end
+    if st == 0.
+        st = abs(0.001 * mean(t))
+        println("std(t) too small replacing with:")
+        println("mean:$(mean(t)), std:$(st)")
+    end
+
+    c = Normal(mean(c),sc)
+    t = Normal(mean(t),st)
     if return_raw_sq
         (SQ,sq,k) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq)
         return SQ,sq,k
