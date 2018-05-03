@@ -36,8 +36,11 @@ for file in searchdir(folder,"jld")
     # bw_method = bandwidth of the KDE
     trusted_solver_num = 9
     #  ax_ary[:violinplot](R[1:end .!= trusted_solver_num,:]',x_ticks[1:end .!= trusted_solver_num],widths=0.5,points=250,showmeans=false,showmedians=true,showextrema=true)
-    tbp = ax_ary[:boxplot](R[trusted_solver_num,:]',positions=[x_ticks[trusted_solver_num]],widths=0.25,notch=true,showfliers=false,autorange=true,patch_artist=true)
-    cbp = ax_ary[:boxplot](R[1:end .!= trusted_solver_num,:]',positions=x_ticks[1:end .!= trusted_solver_num],widths=0.25,notch=true,showfliers=false,autorange=true)
+    tbp = ax_ary[:boxplot](R[trusted_solver_num,:]',positions=[x_ticks[trusted_solver_num]],widths=0.25,notch=false,showfliers=false,autorange=true,patch_artist=true)
+    cbp = ax_ary[:boxplot](R[1:end .!= trusted_solver_num,:]',positions=x_ticks[1:end .!= trusted_solver_num],widths=0.25,notch=false,showfliers=false,autorange=true)
+    #  for x in x_ticks
+        #  ax_ary[:scatter](float(x)*ones(length(R[x,:])),R[x,:],alpha=0.1)
+    #  end
     #  trusted_violin = ax_ary[:violinplot](R[trusted_solver_num,:]',[x_ticks[trusted_solver_num]],widths=0.5,points=250,showmeans=false,showmedians=true,showextrema=true)
     for element in ["boxes","whiskers","means","caps"]
         PyPlot.setp(cbp[element],color=:red)

@@ -124,7 +124,7 @@ function hellinger_normal(c::Distributions.Distribution,t::Distributions.Distrib
     H² = 1-sqrt(2*σ_c*σ_t/(σ²_c+σ²_t))*exp(-0.25*(μ_c-μ_t)^2/(σ²_c+σ²_t))
     H = sqrt(H²)
 
-    #  return sqrt(H)
+    return H
 
 end
 
