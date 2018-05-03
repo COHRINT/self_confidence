@@ -38,7 +38,7 @@ function X3(r::Array{Float64})
 end
 function X3(c::Array{Float64},t::Array{Float64};
             global_rwd_range::Array{Float64}=[1.,1.],L::Float64=2.,x0::Float64=0.,
-            return_raw_sq::Bool=false)
+            return_raw_sq::Bool=false,alpha::Float64=1/2)
     sc = std(c)
     st = std(t)
     if sc == 0.
@@ -57,70 +57,16 @@ function X3(c::Array{Float64},t::Array{Float64};
     c = Normal(mean(c),sc)
     t = Normal(mean(t),st)
     if return_raw_sq
-        (SQ,sq,k) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq)
+        (SQ,sq,k) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq,alpha=alpha)
         return SQ,sq,k
     else
-        SQ = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq)
-        return SQ
-    end
-end
-function X3_old(c::Distributions.Distribution,t::Distributions.Distribution;
-            global_rwd_range::Tuple{Float64,Float64}=(-1.,1.),L::Float64=2.,x0::Float64=0.,
-            return_raw_sq::Bool=false)
-    # using idea of 'standardized moment' https://en.wikipedia.org/wiki/Standardized_moment
-    # in this version we are using `glb_rwd_low` as the absolute mean on which both distributions are being compared
-    # also we scale the moment a second time by the total range of known solutions for all solvers
-    glb_rwd_low = global_rwd_range[1]
-    glb_rwd_high = global_rwd_range[2]
-    glb_rwd_rng = glb_rwd_high - glb_rwd_low
-
-    # handle degenerate cases where solution can go to Inf
-    if isapprox(c.σ,0)
-        c_sig = 1.
-    else
-        c_sig = c.σ
-    end
-    if isapprox(t.σ,0)
-        t_sig = 1.
-    else
-        t_sig = t.σ
-    end
-
-    if c.μ == glb_rwd_low && t.μ == glb_rwd_low
-        # degenerate case where c.μ and t.μ are equal (i.e. numerator goes to zero), we still want to compare sigmas
-        println("### c.μ == t.μ ###")
-        cr = 1/(c_sig)
-        tr = 1/(c_sig)
-    else
-        # standard moments w.r.t. glb_rwd_low
-        cr = (c.μ-glb_rwd_low)/(c_sig)
-        tr = (t.μ-glb_rwd_low)/(t_sig)
-    end
-
-    ref_dist = (glb_rwd_high-glb_rwd_low)/t_sig
-
-    println("cmu: $(c.μ), tmu: $(t.μ), rmu: $glb_rwd_high")
-    println("cmu_s: $(c.μ-glb_rwd_low), tmu_s: $(t.μ-glb_rwd_low), rmu: $glb_rwd_rng")
-    println("csig: $(c_sig), tsig: $(t_sig), rsig: $(t_sig)")
-    println("cr: $cr, tr: $tr, rd: $ref_dist")
-
-    sq = (cr-tr)/ref_dist
-    #  sq = (c.μ-t.μ)/abs(c_sig-t_sig)/ref_dist #decided to try something else for a bit
-    #  k = 1/5
-    k = 5.
-
-    SQ = general_logistic(sq,k=k,x0=x0,L=L)
-
-    println("SQ: $SQ, sq: $sq, k: $k, L: $L, x0: $x0")
-    if return_raw_sq
-        return SQ,sq,k
-    else
+        SQ = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq,alpha=alpha)
         return SQ
     end
 end
 function X3(c::Distributions.Distribution,t::Distributions.Distribution;
             global_rwd_range::Array{Float64}=[1.],L::Float64=2.,x0::Float64=0.,
-            return_raw_sq::Bool=false)
+            return_raw_sq::Bool=false,alpha::Float64=1/2)
 
     # distance between means, in the global scale
     if length(global_rwd_range) == 1
@@ -138,7 +84,7 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
     D = hellinger_normal(c,t)
     sgn = sign(mean(c)-mean(t))
 
-    D_scaled = sgn*sqrt(f)*D
+    D_scaled = sgn*(f^alpha)*D
 
     k = 5.
 
@@ -146,6 +92,7 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
 
     println("###############")
     println("mu_c/s_c: $(mean(c))/$(std(c)), mu_t/s_t: $(mean(t))/$(std(t))")
+    println("alpha: $alpha")
     println("D: $(D), diff_frac: $f, D_scale: $(D_scaled)")
     println("global rwd: $global_rwd_range")
     println("SQ: $SQ")
