@@ -1,4 +1,4 @@
-using PyPlot
+using PyPlot, PyCall
 include("make_SQ_model.jl")
 
 function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
@@ -57,7 +57,7 @@ experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_
                       )
 #  experiment_dict = Dict("transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["bad"],:legend_loc=>"lower right"))
 #  experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["bad"],:legend_loc=>"upper right"))
-#  experiment_dict = Dict("transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["bad"],:legend_loc=>"upper right"))
+experiment_dict = Dict("transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["ok","bad"],:legend_loc=>"upper right"))
 #  experiment_dict = Dict("sense_vary"=>Dict(:inpts=>[:sensor_rwd],:epocs=>1000,:ex_locs=>[-35.,-150.],:cmp=>["bad"],:legend_loc=>"lower right"))
 
 for expr in keys(experiment_dict)
@@ -145,13 +145,46 @@ for expr in keys(experiment_dict)
 
             PyPlot.savefig(string("figs/",log_fname,"_",compare,".pdf"),dpi=300,transparent=true)
         elseif length(inputs) > 1
-            PyPlot.using3D()
-            ax3 = Array{PyCall.PyObject}(3)
-            ax3[1] = PyPlot.subplot2grid((6,10), (0,0),colspan=8,rowspan=6,projection="3d")
-            ax3[2] = PyPlot.subplot2grid((6,10), (0,8),colspan=2,rowspan=3)
-            ax3[3] = PyPlot.subplot2grid((6,10), (3,8),colspan=2,rowspan=3)
-            PyPlot.gcf()[:set_size_inches](8.0,5.0)
-            fontsize = 15
+            # import stuff for plotting
+            @pyimport mpl_toolkits.axes_grid1 as mpl_kit
+            al = mpl_kit.make_axes_locatable
+
+            function trust_surf(x,y,key)
+                _notused, pred_outputs = SQ_predict(SQmodel,[x y]',ones(2,1),use_eng_units=true)
+                return pred_outputs[key][1]
+            end
+
+            i_rng = [-1.65;1.71]
+            grid_ary = collect(linspace(i_rng[1],i_rng[2],50))
+            ts = [trust_surf(x,y,:X3_1) for x in grid_ary, y in grid_ary]'
+            tss = [trust_surf(x,y,:X3_2) for x in grid_ary, y in grid_ary]'
+
+            display(ts)
+            display(tss)
+
+            # Solver Quality Surface
+            fig = plt[:figure](figsize=(6.0,6.0))
+            grid = fig[:subplots](2,2)
+            div = []
+            push!(div,al(grid[1]))
+            push!(div,al(grid[2]))
+            cax = []
+            push!(cax,div[1][:append_axes]("right",size="5%",pad=0.05))
+            push!(cax,div[2][:append_axes]("right",size="5%",pad=0.05))
+
+            #  grid = ImageGrid(fig, 111,          # as in plt.subplot(111)
+                                 #  nrows_ncols=(3,2),
+                                 #  direction="row",
+                                 #  aspect = true,
+                                 #  axes_pad=0.65,
+                                 #  share_all=true,
+                                 #  cbar_location="right",
+                                 #  cbar_mode="each",
+                                 #  cbar_size="3%",
+                                 #  cbar_pad=0.10,
+                                 #  )
+            fontsize = 10
+
 
             # make correlation plots
             i1 = inpts[1]
@@ -162,21 +195,41 @@ for expr in keys(experiment_dict)
             poi2 = [0.7;800.] # point of interest, where X3 will be calculated
             poi1_norm = [(poi1[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi1[2]-mean(input_sch[i2]))/std(input_sch[i2])]
             poi2_norm = [(poi2[1]-mean(input_sch[i1]))/std(input_sch[i1]);(poi2[2]-mean(input_sch[i2]))/std(input_sch[i2])]
+
+            x_rng = [i_rng[1]*std(input_sch[i1])+mean(input_sch[i1]);i_rng[2]*std(input_sch[i1])+mean(input_sch[i1])]
+            y_rng = [i_rng[1]*std(input_sch[i2])+mean(input_sch[i2]);i_rng[2]*std(input_sch[i2])+mean(input_sch[i2])]
             subsample_num = 3
 
-            ax3[1][:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],tst_out_eng_ary[:X3_1][1:subsample_num:end],color=:red,alpha=0.2,label="Candidate")
-            ax3[1][:scatter3D](tst_in_eng[i1][1:subsample_num:end],tst_in_eng[i2][1:subsample_num:end],pred_outputs[:X3_1][1:subsample_num:end],color=:blue,alpha=0.2,label="Trusted")
+            aspct = diff(x_rng)[1]./diff(y_rng)[1]
+            #  error()
 
-            add_sq_scatter3d_annotation(ax3[1],ax3[2],test_input,tst_out_eng_ary,i1,i2,poi1_norm,SQmodel,marker="o",s=50,fontsize=12)
-            add_sq_scatter3d_annotation(ax3[1],ax3[3],test_input,tst_out_eng_ary,i1,i2,poi2_norm,SQmodel,marker="*",s=50,fontsize=12)
+            sq_cmap = :viridis
+            im1 = grid[1][:imshow](ts,origin="lower",cmap=sq_cmap,interpolation="bilinear",extent=[x_rng;y_rng],aspect="auto")
+            #  im1 = grid[1][:imshow](ts,origin="lower",cmap=sq_cmap,interpolation="bilinear",aspect="auto")
+            grid[1][:scatter](poi1[1],poi1[2],color=:black,marker=L"$A$",color=:gray)
+            grid[1][:scatter](poi2[1],poi2[2],color=:black,marker=L"$B$",color=:gray)
+            grid[1][:set_ylabel]("$(inpts[2])")
+            grid[1][:set_title]("Mean Rwd: Trusted Solver")
+            fig[:colorbar](im1,cax=cax[1])
 
-            ax3[1][:view_init](azim=-76,elev=25)
+            sqs_cmap = :magma
+            im2 = grid[2][:imshow](tss,origin="lower",cmap=sqs_cmap,interpolation="bilinear",extent=[x_rng;y_rng],aspect="auto")
+            #  im2 = grid[2][:imshow](tss,origin="lower",cmap=sqs_cmap,interpolation="bilinear",aspect="auto")
+            grid[2][:scatter](poi1[1],poi1[2],color=:black,s=50,marker=L"$A$",color=:gray)
+            grid[2][:scatter](poi2[1],poi2[2],color=:black,s=50,marker=L"$B$",color=:gray)
+            grid[2][:set_ylabel]("$(inpts[2])")
+            grid[2][:set_xlabel]("$(inpts[1])")
+            grid[2][:set_title]("Std: Trusted Solver")
+            fig[:colorbar](im2,cax=cax[2])
+            #  grid[2][:set_aspect](aspct)
 
-            ax3[1][:set_xlabel](string(i1),fontsize=fontsize)
-            ax3[1][:set_ylabel](string(i2),fontsize=fontsize)
-            ax3[1][:set_zlabel](string("Reward"),fontsize=fontsize)
+            add_sq_scatter3d_annotation(grid[1],grid[3],test_input,tst_out_eng_ary,i1,i2,poi1_norm,SQmodel,marker=L"$A$",s=50,fontsize=12)
+            add_sq_scatter3d_annotation(grid[2],grid[4],test_input,tst_out_eng_ary,i1,i2,poi2_norm,SQmodel,marker=L"$B$",s=50,fontsize=12)
+
+            grid[3][:legend]()
 
             PyPlot.tight_layout()
+            PyPlot.subplots_adjust(hspace=0.4,wspace=0.8)
 
             PyPlot.savefig(string("figs/",log_fname,"_",compare,".pdf"),dpi=300,transparent=true)
         else

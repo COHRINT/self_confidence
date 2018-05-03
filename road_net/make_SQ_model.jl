@@ -194,7 +194,7 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     return in_data, out_data, table, input_sch, output_sch
 end
 
-function add_sq_scatter3d_annotation(ax1::PyCall.PyObject,ax2::PyCall.PyObject,in::Array,out_eng_ary::Dict,i1::Symbol,i2::Symbol,poi::Array,SQmodel::SQ_model;yval::Symbol=:X3_1,yval_std::Symbol=:X3_2,marker::String="*",s::Int64=100,color=:black,fontsize::Int64=12)
+function add_sq_scatter3d_annotation(ax1::PyCall.PyObject,ax2::PyCall.PyObject,in::Array,out_eng_ary::Dict,i1::Symbol,i2::Symbol,poi::Array,SQmodel::SQ_model;yval::Symbol=:X3_1,yval_std::Symbol=:X3_2,marker::AbstractString="*",s::Int64=100,color=:black,fontsize::Int64=12)
     in_eng, pred_outputs = SQ_predict(SQmodel,in,repmat(ones(2,1),1,length(out_eng_ary[yval])),use_eng_units=true)
     display(in_eng)
     #  in_eng, pred_outputs = SQ_predict(SQmodel,reshape(in_ary,size(in_ary,1),1),[1. 1.]',use_eng_units=true)
@@ -221,30 +221,27 @@ function add_sq_scatter3d_annotation(ax1::PyCall.PyObject,ax2::PyCall.PyObject,i
 
     #  println(in_eng)
     #  println(pred_outputs)
-    sq = X3(Normal(out_eng_ary[yval][x_idx],out_eng_ary[yval_std][x_idx]),Normal(pred_outputs[yval][1],pred_outputs[yval_std][1]),global_rwd_range=rwd_rng)
+    sq = X3(Normal(out_eng_ary[yval][x_idx],out_eng_ary[yval_std][x_idx]),Normal(pred_outputs[yval][x_idx],pred_outputs[yval_std][x_idx]),global_rwd_range=rwd_rng)
     sq_txt = @sprintf("%0.3f",sq)
 
-    ax1[:scatter3D](in_eng[i1][x_idx],in_eng[i2][x_idx],out_eng_ary[yval][x_idx],color=color,alpha=0.9,marker=marker,s=s,label="SQ: $sq_txt")
-
-    if marker == "*"
-        ttl = L"\star"
-    elseif marker == "o"
-        ttl = L"\bullet"
-    end
     println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     println("vals: $([out_eng_ary[yval][x_idx], out_eng_ary[yval_std][x_idx]])")
+    println("preds: $([pred_outputs[yval][x_idx], pred_outputs[yval_std][x_idx]])")
+    println("pred_outputs: $pred_outputs")
     println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    ax2[:errorbar](0.1,pred_outputs[yval][1],pred_outputs[yval_std][x_idx],color=:blue,label="",fmt="o",capsize=3,alpha=0.6)
-    ax2[:errorbar](-0.1,out_eng_ary[yval][x_idx],out_eng_ary[yval_std][x_idx],color=:red,fmt="*",capsize=3,alpha=0.6,label="")
+    ax2[:errorbar](0.1,pred_outputs[yval][x_idx],pred_outputs[yval_std][x_idx],color=:blue,label="Trusted",fmt="o",capsize=3,alpha=0.6)
+    ax2[:errorbar](-0.1,out_eng_ary[yval][x_idx],out_eng_ary[yval_std][x_idx],color=:red,fmt="o",capsize=3,alpha=0.6,label="Candidate")
     ax2[:set_xlim]([-0.2,0.2])
     ax2[:set_xticklabels]("")
     #  ax2[:set_ylim](rwd_rng)
     ax2[:axhline](limits[:X3_1][2])
     ax2[:axhline](limits[:X3_1][1])
-    ax2[:text](0.8*-0.2,limits[:X3_1][2],L"r_H",fontsize=fontsize,va="top",ha="left")
+    ax2[:text](0.8*0.2,limits[:X3_1][2],L"r_H",fontsize=fontsize,va="top",ha="right")
     ax2[:text](0.8*0.2,limits[:X3_1][1],L"r_L",fontsize=fontsize,va="bottom",ha="right")
-    #  ax2[:legend]()
-    ax2[:set_title](string(ttl," SQ:$sq_txt"),fontsize=fontsize)
+    ax2[:set_title](string("SQ at ",marker,": $sq_txt"),fontsize=fontsize)
+    ax2[:set_ylabel]("Reward")
+    ax2[:set_adjustable]("box-forced")
+    #  ax2[:set_aspect](1/(5*(limits[:X3_1][2]-limits[:X3_2][1])))
 end
 function norm2(ary::Array)
     n = NaN*ones(1,size(ary,2))
