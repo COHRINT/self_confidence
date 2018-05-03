@@ -16,9 +16,9 @@ for k in ks
 end
 
 fig = PyPlot.figure()
-fig[:set_size_inches](8.,6.)
+fig[:set_size_inches](6.,3.)
 ax = fig[:add_subplot](1,1,1)
-fontsize = 12
+fontsize = 10
 ax[:set_title](LaTeXString("Location of \$x_{sat}\$ for different \$k\$\n\$x_{sat}\\approx 5/k\$, or \$k\\approx 5/x_{sat}\$"),size=fontsize)
 ax[:set_xlabel]("x",size=fontsize)
 ax[:set_ylabel]("y",size=fontsize)
@@ -30,7 +30,7 @@ for i = 1:length(ks)
     lbl = LaTeXString("$k_str, $x_str")
     #  println(lbl)
     ax[:plot](x,ys[:,i],label=lbl)
-    ax[:axvline](x=[5/k],lw=1,color=:black,label="")
+    ax[:axvline](x=[5/k],lw=1,color=:gray,label="")
 end
 fig[:tight_layout]()
 ax[:legend]()
