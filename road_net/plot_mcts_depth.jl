@@ -2,6 +2,7 @@ using JLD
 using PyPlot
 include("utilities.jl")
 include("self_confidence.jl")
+pygui(false)
 
 searchdir(path,key) = filter(x->contains(x,key), readdir(path))
 
@@ -10,6 +11,7 @@ folder = "gcloud_data"
 for file in searchdir(folder,"jld")
     println("Processing: $file")
     fname = split("$(folder)/$file",".")[1]
+    fsize = 12
 
     data = JLD.load("$fname.jld")
     max_steps = data["max_steps"]
@@ -33,26 +35,34 @@ for file in searchdir(folder,"jld")
     # points = # of points where the Kernel Density Estimator is estimated
     # bw_method = bandwidth of the KDE
     trusted_solver_num = 9
-    ax_ary[:violinplot](R[1:end .!= trusted_solver_num,:]',x_ticks[1:end .!= trusted_solver_num],widths=0.5,points=100,showmedians=true)
-    trusted_violin = ax_ary[:violinplot](R[trusted_solver_num,:]',[x_ticks[trusted_solver_num]],widths=0.5,points=100,showmedians=true)
-    #  for pc in trusted_violin["bodies"]
-        #  pc.set_facecolor("red")
-        #  pc.set_edgecolor("red")
-    #  end
+    #  ax_ary[:violinplot](R[1:end .!= trusted_solver_num,:]',x_ticks[1:end .!= trusted_solver_num],widths=0.5,points=250,showmeans=false,showmedians=true,showextrema=true)
+    tbp = ax_ary[:boxplot](R[trusted_solver_num,:]',positions=[x_ticks[trusted_solver_num]],widths=0.25,notch=true,showfliers=false,autorange=true,patch_artist=true)
+    cbp = ax_ary[:boxplot](R[1:end .!= trusted_solver_num,:]',positions=x_ticks[1:end .!= trusted_solver_num],widths=0.25,notch=true,showfliers=false,autorange=true)
+    #  trusted_violin = ax_ary[:violinplot](R[trusted_solver_num,:]',[x_ticks[trusted_solver_num]],widths=0.5,points=250,showmeans=false,showmedians=true,showextrema=true)
+    for element in ["boxes","whiskers","means","caps"]
+        PyPlot.setp(cbp[element],color=:red)
+    end
+    for element in ["boxes","whiskers","means","caps"]
+        PyPlot.setp(tbp[element],color=:blue)
+    end
+    for patch in tbp["boxes"]
+        patch[:set_facecolor](:blue)
+        patch[:set_alpha](0.35)
+    end
+
     for i in x_ticks
         #  display(R[i,:])
         SQ = X3(R[i,:],R[trusted_solver_num,:],global_rwd_range=[minimum(R),maximum(R)])
         println("SQ: $SQ")
         #  @info "X3 at $i: $SQ"
-        ax_ary[:annotate]("SQ: $(@sprintf("%0.2f",SQ))",xy=(i,mean(R[i,:])),size=10)
+        ax_ary[:annotate]("SQ: $(@sprintf("%0.2f",SQ))",xy=(i,mean(R[i,:])),size=8)
     end
 
-    ax_ary[:set_ylabel]("Reward")
+    ax_ary[:set_ylabel]("Reward",size=fsize)
     ax_ary[:set_xticks](x_ticks)
     ax_ary[:xaxis][:set_ticklabels](x_lbls)
-    ax_ary[:set_xlabel]("MCTS Depth")
-    #  ax_ary[:legend](loc=1,bbox_to_anchor=(1.0,1.15))
-    ax_ary[:set_title]("Reward vs. MCTS Depth")
+    ax_ary[:set_xlabel]("MCTS Depth",size=fsize)
+    ax_ary[:set_title]("Reward vs. MCTS Depth",size=fsize)
 
     PyPlot.savefig("$fname.pdf",dpi=300,transparent=true)
 end
