@@ -55,7 +55,7 @@ experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_
                        "transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["ok","bad"],:legend_loc=>"lower right"),
                        "transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[],:cmp=>["ok","bad"],:legend_loc=>"lower right")
                       )
-#  experiment_dict = Dict("transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["bad"],:legend_loc=>"lower right"))
+#  experiment_dict = Dict("transition_vary"=>Dict(:inpts=>[:tprob],:epocs=>1000,:ex_locs=>[0.25,0.75],:cmp=>["bad","ok"],:legend_loc=>"lower right"))
 #  experiment_dict = Dict("n_vary"=>Dict(:inpts=>[:exit_distance],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["bad"],:legend_loc=>"upper right"))
 experiment_dict = Dict("transition_e_vary"=>Dict(:inpts=>[:tprob,:e_mcts],:epocs=>1000,:ex_locs=>[1.,5.],:cmp=>["ok","bad"],:legend_loc=>"upper right"))
 #  experiment_dict = Dict("sense_vary"=>Dict(:inpts=>[:sensor_rwd],:epocs=>1000,:ex_locs=>[-35.,-150.],:cmp=>["bad"],:legend_loc=>"lower right"))
@@ -116,7 +116,7 @@ for expr in keys(experiment_dict)
         if length(inputs) == 1
             fig,ax_ary = PyPlot.subplots(1,1,sharex=false)
             fig[:set_size_inches](8.0,6.0)
-            fontsize = 15
+            fontsize = 20
             PyPlot.grid()
 
             i1 = collect(keys(inputs))[1]
@@ -141,7 +141,7 @@ for expr in keys(experiment_dict)
 
             #  ax_ary[:scatter](tst_in_eng[i1],pred_outputs[:X3_1],color=:blue)
             scatter_with_conf_bnds(ax_ary,tst_in_eng,pred_outputs,i1,:X3_1,:X3_2,:blue,subsample=collect(1:8:length(tst_in_eng[i1])),label="trusted",bar=false)
-            ax_ary[:legend](loc=legend_loc)
+            ax_ary[:legend](loc=legend_loc,fontsize=fontsize)
 
             PyPlot.savefig(string("figs/",log_fname,"_",compare,".pdf"),dpi=300,transparent=true)
         elseif length(inputs) > 1
