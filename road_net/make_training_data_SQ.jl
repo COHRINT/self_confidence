@@ -151,7 +151,7 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
                               caught_rwd=Float64[],sensor_rwd=Float64[],avg_degree=Float64[],deg_variance=Float64[],
                               diam=Float64[],max_degree=Float64[],N=Float64[],E=Float64[],its=Float64[],
                               e_mcts=Float64[],d_mcts=Float64[],steps=Float64[],repeats=Float64[],
-                              exit_distance=Float64[],pursuer_distance=Float64[],X3_1=Float64[],X3_2=Float64[],
+                              exit_distance=Float64[],pursuer_distance=Float64[],X3_1=Float64[],X3_2=Float64[],X4=Float64[],
                               mean=Float64[],median=Float64[],moment_2=Float64[],moment_3=Float64[],
                               moment_4=Float64[],moment_5=Float64[],moment_6=Float64[],moment_7=Float64[],
                               moment_8=Float64[],moment_9=Float64[],moment_10=Float64[])
@@ -221,6 +221,10 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
             SQ_data = X3(r_dist)
             @debug SQ_data
 
+            @info "calculating X4 data"
+            OA_data = X4(r_dist,threshold=mean(r_dist))
+            @debug OA_data
+
             @info "calculating statistical moments"
             r_dist_moments = [mean(r_dist) median(r_dist) moment(r_dist,2) moment(r_dist,3) moment(r_dist,4) moment(r_dist,5) moment(r_dist,6) moment(r_dist,7) moment(r_dist,8) moment(r_dist,9) moment(r_dist,10)]
             @debug r_dist_moments
@@ -234,7 +238,7 @@ function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false
             @debug solver_props_ary
 
             @info "combining to a row"
-            data_entry = [net_num mdp_props_ary solver_props_ary SQ_data r_dist_moments]
+            data_entry = [net_num mdp_props_ary solver_props_ary SQ_data OA_data r_dist_moments]
             @debug length(net_num) length(mdp_props_ary) length(solver_props_ary) length(SQ_data) length(r_dist_moments)
             @debug data_entry
             @debug length(data_entry)
