@@ -109,7 +109,7 @@ end
 ###### add other road networks here.....
 function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,
                       sensor_rwd::Float64=-1.,net_seed::Int64=0,
-                      target_mean_degree::Float64=5.0,approx_E::Int64=2*n,is_directed::Bool=false,
+                      target_mean_degree::Float64=5.0,approx_E::Int64=2*N,is_directed::Bool=false,
                       exit_nodes::Array{Int64}=empty!([1]),method::Symbol=:erdos_n_p)::MetaGraph
     # N: total nodes
     # exit_rwd: how much reward at exit
@@ -122,13 +122,16 @@ function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     # method: specifies using erdos_n_p or erdos_n_e
 
     g = Graph()
-    p = 0.5
     p_itr = 1
     tot_itr = 1
     max_its = 1e4
     round_digits = length(split(string(target_mean_degree),".")[2])
     d_hist = Deque{Float64}()
     if method == :erdos_n_p
+        #  p = 0.5
+        approx_desired_edges = N*target_mean_degree*2.
+        p = N./approx_desired_edges
+        println("##########$p##########")
         while (!is_connected(g) || round(mean(degree(g)),round_digits)!= target_mean_degree) && tot_itr < max_its
             g = erdos_renyi(N,p,is_directed=is_directed,seed=net_seed)
             tot_itr += 1
@@ -192,34 +195,44 @@ function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
 end
 
 ##### display stuff
-function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),pursuer_locs::Array{Int64}=empty!([1]),action_locs::Array{Int64}=empty!([1]),fname::String="test",ftype::Symbol=:svg,scale::Float64=1.0)
+function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),pursuer_locs::Array{Int64}=empty!([1]),action_locs::Array{Int64}=empty!([1]),fname::String="test",ftype::Symbol=:pdf,scale::Float64=1.0,exit_node_style::String="fill=white!70,inner sep=1pt",evader_node_style::String="fill=teal,inner sep=1pt",action_node_style::String="fill=yellow!30",pursuer_node_style::String="fill=red!70,inner sep=1pt",other_node_style::String="circle, fill=lightgray",label_style::Symbol=:debug,evader_font_color::String="black",pursuer_font_color::String="black",exit_font_color::String="black")
     # find exit nodes
     node_styles = Dict()
-    exit_format = "fill=green!70"
-    other_node_style = "draw, rounded corners, fill=blue!10"
+    node_labels = Vector{AbstractString}(length(vertices(g)))
     for i in vertices(g)
         if g.vprops[i][:state_property] == :exit
-            node_styles[i]=exit_format
+            node_styles[i] = exit_node_style
+            #  node_labels[i] = LaTeXString("\\Stopsign") # marvosym package
+            #  node_labels[i] = LaTeXString("\\FiveStarOpenCircle") # bbding package
+            node_labels[i] = LaTeXString("\{\\color{$(exit_font_color)}\\faStar\}") # fontawesome package
+        else
+            node_labels[i] = ""
         end
     end
 
-    evader_node_style = "fill=yellow!70"
-    action_node_style = "fill=yellow!30"
-    pursuer_node_style = "fill=red!70"
     for x in action_locs
         node_styles[x] = action_node_style
     end
     for x in evader_locs
         node_styles[x] = evader_node_style
+        #  node_labels[x] = LaTeXString("\\Smiley") # marvosym package
+        #  node_labels[x] = LaTeXString("\\faPlane") # fontawesome package
+        node_labels[x] = LaTeXString("\{\\color{$(evader_font_color)}\\faTruck\}") # fontawesome package
     end
     for x in pursuer_locs
         node_styles[x] = pursuer_node_style
-    end
+        #  node_labels[x] = LaTeXString("\\Frowny")
+        node_labels[x] = LaTeXString("\{\\color{$(pursuer_font_color)}\\faMotorcycle\}") # fontawesome package
 
-    t = TikzGraphs.plot(g.graph,Layouts.Spring(randomSeed=52), node_style=other_node_style,node_styles=node_styles)
+    end
+    #  prmbl = "\\usepackage{fontawesome}\n\\usepackage{pifont}\n\\usepackage{textcomp}\n\\DeclareFontFamily\{U\}\{magic\}\{\}\n"
+    prmbl = readstring("./prepend_preamble.tex")
+
+    #  t = TikzGraphs.plot(g.graph,labels=node_labels,Layouts.Layered(), node_style=other_node_style,node_styles=node_styles,prepend_preamble=prmbl)
+    t = TikzGraphs.plot(g.graph,labels=node_labels,Layouts.SpringElectrical(randomSeed=100,charge=5.), node_style=other_node_style,node_styles=node_styles,prepend_preamble=prmbl)
     t.options = "scale=$scale" # add "scale=2.0" to scale image, but doesn't look too good
-    if ftype == :svg
-        TikzPictures.save(SVG(fname),t)
+    if ftype == :pdf
+        TikzPictures.save(PDF(fname),t)
     else
         println("do not support other outputs yet")
     end
