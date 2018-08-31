@@ -1,4 +1,4 @@
-if nworkers() < 5
+if nworkers() < 5 && nworkers() > 1
     nw = 150
     println("Adding $nw workers...")
     addprocs(nw, topology=:master_slave)
@@ -13,7 +13,7 @@ println("including libraries")
 @everywhere include("send_mail.jl")
 println("done")
 
-fname = "net_transition_sense_vary"
+fname = "x4_test"
 train_txt = "_reference_solver_training"
 test_txt = "_reference_solver_test"
 bad_txt = "_bad_solver"
@@ -21,6 +21,8 @@ ok_txt = "_ok_solver"
 
 if fname == "transition_vary"
     include("experiment_params/transition_vary.jl")
+elseif fname == "x4_test"
+    include("experiment_params/x4_test.jl")
 elseif fname == "n_vary"
     include("experiment_params/n_vary.jl")
 elseif fname == "sense_vary"
