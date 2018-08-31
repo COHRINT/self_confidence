@@ -83,6 +83,14 @@ function POMDPs.generate_s(mdp::roadnet_with_pursuer,state::roadnet_pursuer_stat
 
 end
 
+function convert_s(::Type{V} where V<: AbstractVector{Float64}, s::roadnet_pursuer_state, mdp::roadnet_with_pursuer)
+#implement this function
+end
+
+function convert_s(::Type, ::AbstractArray, ::roadnet_with_pursuer)
+#implement this function
+end
+
 function POMDPs.reward(mdp::roadnet_with_pursuer,state::roadnet_pursuer_state,action::Symbol,statep::roadnet_pursuer_state)
     #  println(mdp.road_net.gprops[:exit_nodes])
     if state.node in mdp.road_net.gprops[:exit_nodes]
