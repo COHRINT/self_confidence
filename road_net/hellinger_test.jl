@@ -105,8 +105,8 @@ if true
     ax2[:set_aspect]("equal")
     fig2[:colorbar](cx2,shrink=0.73)
     ax2[:set_xlabel](L"$\Delta\mu$")
-    ax2[:set_ylabel](L"$\sigma_1$")
-    ax2[:set_title](L"Hellinger vs. $\Delta\mu$, and $\sigma_1$")
+    ax2[:set_ylabel](L"$\sigma_P$")
+    ax2[:set_title](L"Hellinger vs. $\Delta\mu$, and $\sigma_P$")
     PyPlot.tight_layout()
     #
     savefig("figs/hellinger_surf.pdf",transparent=true,dpi=300)
