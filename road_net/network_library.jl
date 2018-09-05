@@ -109,8 +109,8 @@ end
 ###### add other road networks here.....
 function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000.,
                       sensor_rwd::Float64=-1.,net_seed::Int64=0,
-                      target_mean_degree::Float64=5.0,approx_E::Int64=2*N,is_directed::Bool=false,
-                      exit_nodes::Array{Int64}=empty!([1]),method::Symbol=:erdos_n_p)::MetaGraph
+                      target_mean_degree::Float64=5.0,approx_E::Int64=round(Int,target_mean_degree*N/2),
+                      exit_nodes::Array{Int64}=empty!([1]),method::Symbol=:watts_strogatz)::MetaGraph
     # N: total nodes
     # exit_rwd: how much reward at exit
     # caught_rwd: how much reward when caught
@@ -118,59 +118,37 @@ function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     # net_seed: random seed to be able to regenerate a network
     # target_mean_degree: desired average degree to constrain the action space, if using method=erdos_n_p
     # approx_E: approximate number of edges to be used if using method=:erdos_n_e (some randomness added here)
-    # is_directed: whether graph is directed or not
     # method: specifies using erdos_n_p or erdos_n_e
 
-    g = Graph()
-    p_itr = 1
-    tot_itr = 1
+    g = SimpleGraph(2)
+    its = 0
     max_its = 1e4
-    round_digits = length(split(string(target_mean_degree),".")[2])
-    d_hist = Deque{Float64}()
-    if method == :erdos_n_p
-        #  p = 0.5
-        approx_desired_edges = N*target_mean_degree*2.
-        p = N./approx_desired_edges
-        println("##########$p##########")
-        while (!is_connected(g) || round(mean(degree(g)),round_digits)!= target_mean_degree) && tot_itr < max_its
-            g = erdos_renyi(N,p,is_directed=is_directed,seed=net_seed)
-            tot_itr += 1
-            p_itr += 1
-            push!(d_hist,mean(degree(g))) #keep running history of mean degrees
-            if p_itr > 100
-                # we aren't getting desired degree, change p accordingly
-                p_delta = 10.^(-(log(p_itr)-2.))
-                if mean(degree(g)) > target_mean_degree
-                    # subtract less and less off of p as iterations go up
-                    p = p - p_delta
-                else
-                    # add less and less to p as iterations go up
-                    p = p + p_delta
-                end
-                shift!(d_hist)
-                #  round(p,5)
-                #  println("Mean degree is $(mean(degree(g))), target is $(target_mean_degree), Changing p to: $p")
-            end
-        end
-    elseif method == :erdos_n_e
-        while (!is_connected(g)) && tot_itr < max_its
-            E = Int(round(approx_E + randn()/10*approx_E))
-            g = erdos_renyi(N,E,is_directed=is_directed,seed=net_seed)
-            net_seed += 1
-        end
-    else
-        error("DO NOT SUPPORT THAT METHOD YET")
+
+    if method == :random
+        method = rand([:watts_strogatz,:expected_degree,:erdos_n_e,:static_scale_free],1)[1]
+        println("selected $method")
     end
-    if tot_itr >= max_its
-        d_hist_diff = abs.(diff([float(x) for x in d_hist]))
-        #  display(d_hist)
-            #  display(d_hist_diff)
-            #  display(unique(d_hist_diff))
-            if length(unique(d_hist_diff)) > 3
-                    # if there are "too many" unique values in history, couldn't find it
-                    # otherwise were were bouncing around the solution, and can pass on the answer
-            error("couldn't make desired network")
+
+    while (!is_connected(g)) && its < max_its
+        if method == :watts_strogatz
+            g = watts_strogatz(N,round(Int,target_mean_degree),0.3,seed=net_seed)
+        elseif method == :expected_degree
+            rand_shift = rand(N)+1
+            g = expected_degree_graph(ones(N)*target_mean_degree.*rand_shift,seed=net_seed)
+        elseif method == :erdos_n_e
+            g = erdos_renyi(N,approx_E,is_directed=false,seed=net_seed)
+        elseif method == :static_scale_free
+            g = static_scale_free(N,approx_E,2.0,seed=net_seed)
+        else
+            error("graph type not supported")
         end
+        net_seed += 1
+        its += 1
+    end
+
+    if its == max_its
+        println("its=$its")
+        error("couldn't make network")
     end
 
     # make graph with metadata
