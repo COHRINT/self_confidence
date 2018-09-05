@@ -144,7 +144,7 @@ function netprops2array(g::roadnet_with_pursuer)
 
 end
 
-function make_training_data(;data_fname::String="nets.jld",logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,repeats::Int64=25,sim_steps::Int64=-1,dis_rwd::Bool=false)
+function make_training_data(;data_fname::String="nets",logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,repeats::Int64=25,sim_steps::Int64=-1,dis_rwd::Bool=false)
 
     # initialize the DataFrame
     training_data = DataFrame(graphID=Int64[],discount=Float64[],tprob=Float64[],num_exit_nodes=Float64[],exit_rwd=Float64[],
