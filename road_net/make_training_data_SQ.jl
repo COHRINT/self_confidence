@@ -110,7 +110,9 @@ function get_reward_distribution(g::MetaGraph, mdp::roadnet_with_pursuer; max_st
     ST = reshape(sim_time,length(its_axis),:)
 
     # Save off data
-    JLD.save("data/$(num_repeats)_$(DateTime(now())).jld","its_axis",its_axis,"d_axis",d_axis,"rewards",rewards,
+    jld_fname = "data/$(num_repeats)_$(DateTime(now())).jld"
+    @info "saving data to `$jld_fname`"
+    JLD.save(jld_fname,"its_axis",its_axis,"d_axis",d_axis,"rewards",rewards,
          "u_vals",mean(rewards,2),"max_steps",max_steps,"R",R,"ST",ST,"IA",IA,"DA",DA)
 
     return vec(R) #convert to vector
@@ -172,6 +174,7 @@ function make_training_data(;data_fname::String="nets",logtofile::Bool=false, lo
     end
 
     i = 0
+    r_dists = Dict()
     for problem in problem_dict
         i += 1
         display(problem_dict)
@@ -216,6 +219,7 @@ function make_training_data(;data_fname::String="nets",logtofile::Bool=false, lo
             with_logger(logger) do
                 r_dist = get_reward_distribution(g,mdp,its_vals=its,d_vals=d_mcts,exp_vals=e_mcts,max_steps=steps,num_repeats=repeats,discounted_rwd=dis_rwd,initial_state=start_state)
             end
+            r_dists[net_num] = r_dist
 
             @info "calculating X3 data"
             SQ_data = X3(r_dist)
@@ -247,6 +251,7 @@ function make_training_data(;data_fname::String="nets",logtofile::Bool=false, lo
         end
     end
     CSV.write("$data_fname.csv",training_data)
+    JLD.save("$data_fname.jld","r_dists",r_dists)
 
     if logtofile
         # using the "open(...) do f ... syntax printed the length of the file at the end, this ways doesn't do that
