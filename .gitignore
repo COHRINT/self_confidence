@@ -1,3 +1,7 @@
+# stuff we don't need
+tags
+.tmuxp.yaml
+
 # images
 *.png
 *.pbm
