@@ -99,7 +99,7 @@ function SQ_predict(SQ::SQ_model,inputs::Array,outputs::Array;use_eng_units::Boo
     X3_1plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs[2,:], shuffle=false)
     X3_2plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs[1,:], shuffle=false)
     X3_1fit = mx.predict(SQ.X3_1net, X3_1plotprovider)
-    X3_2fit = mx.predict(SQ.X3_2net, X3_1plotprovider)
+    X3_2fit = mx.predict(SQ.X3_2net, X3_2plotprovider)
     println("Predicted Output:")
     display(X3_1fit)
     display(X3_2fit)
