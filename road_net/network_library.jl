@@ -124,11 +124,6 @@ function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     its = 0
     max_its = 1e4
 
-    if method == :random
-        method = rand([:watts_strogatz,:expected_degree,:erdos_n_e,:static_scale_free],1)[1]
-        println("selected $method")
-    end
-
     while (!is_connected(g)) && its < max_its
         if method == :watts_strogatz
             g = watts_strogatz(N,round(Int,target_mean_degree),0.3,seed=net_seed)
@@ -173,7 +168,7 @@ function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
 end
 
 ##### display stuff
-function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),pursuer_locs::Array{Int64}=empty!([1]),action_locs::Array{Int64}=empty!([1]),fname::String="test",ftype::Symbol=:pdf,scale::Float64=1.0,exit_node_style::String="fill=white!70,inner sep=1pt",evader_node_style::String="fill=teal,inner sep=1pt",action_node_style::String="fill=yellow!30",pursuer_node_style::String="fill=red!70,inner sep=1pt",other_node_style::String="circle, fill=lightgray",label_style::Symbol=:debug,evader_font_color::String="black",pursuer_font_color::String="black",exit_font_color::String="black")
+function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),pursuer_locs::Array{Int64}=empty!([1]),action_locs::Array{Int64}=empty!([1]),fname::String="test",ftype::Symbol=:svg,scale::Float64=1.0,exit_node_style::String="fill=white!70,inner sep=1pt",evader_node_style::String="fill=teal,inner sep=1pt",action_node_style::String="fill=yellow!30",pursuer_node_style::String="fill=red!70,inner sep=1pt",other_node_style::String="circle, fill=darkgray, inner sep=2pt",label_style::Symbol=:debug,evader_font_color::String="white",pursuer_font_color::String="white",exit_font_color::String="black")
     # find exit nodes
     node_styles = Dict()
     node_labels = Vector{AbstractString}(length(vertices(g)))
@@ -211,9 +206,10 @@ function display_network(g::MetaGraph;evader_locs::Array{Int64}=empty!([1]),purs
     t.options = "scale=$scale" # add "scale=2.0" to scale image, but doesn't look too good
     if ftype == :pdf
         TikzPictures.save(PDF(fname),t)
+    elseif ftype == :svg
+        TikzPictures.save(SVG(fname),t)
     else
         println("do not support other outputs yet")
     end
-    #  t = plot(g.graph)
     return t
 end

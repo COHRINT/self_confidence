@@ -32,7 +32,7 @@ function data_source(batchsize::Int64,train_in,train_out,valid_in,valid_out)
 end
 
 function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::String; input_dict::Dict=Dict(),
-                          output_dict::Dict=Dict(),nn_epoc::Int64=15,nn_batch_size::Int64=25,
+                          output_dict::Dict=Dict(),nn_epoc::Int64=150,nn_batch_size::Int64=-1,
                           train_subsample::Int64=1,valid_subsample::Int64=1)
 
     training_in, training_out, training_table, input_sch, output_sch = return_data(train_fname,inputs=input_dict,outputs=output_dict,subsample=train_subsample)
@@ -64,6 +64,12 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::Str
 
     # get data providers
     # Array(training_out[1,:]') -- this is some crazy conversion so the output is the right type....
+    if nn_batch_size < 0
+
+        # no value was provided
+        nn_batch_size = round(Int,0.25*length(training_in))
+    end
+
     X3_1trainprovider, X3_1evalprovider = data_source(#= batchsize =# nn_batch_size,training_in,Array(training_out[1,:]'),valid_in,Array(valid_out[1,:]'))
     X3_2trainprovider, X3_2evalprovider = data_source(#= batchsize =# nn_batch_size,training_in,Array(training_out[2,:]'),valid_in,Array(valid_out[2,:]'))
 
@@ -91,13 +97,11 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::Str
     return SQ
 end
 
-function SQ_predict(SQ::SQ_model,inputs::Array,outputs::Array;use_eng_units::Bool=false)
+function SQ_predict(SQ::SQ_model,inputs::Array;use_eng_units::Bool=false)
     println("inputs:")
     display(inputs)
-    println("outputs:")
-    display(outputs)
-    X3_1plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs[2,:], shuffle=false)
-    X3_2plotprovider = mx.ArrayDataProvider(:data => inputs, :label => outputs[1,:], shuffle=false)
+    X3_1plotprovider = mx.ArrayDataProvider(:data => inputs, shuffle=false)
+    X3_2plotprovider = mx.ArrayDataProvider(:data => inputs, shuffle=false)
     X3_1fit = mx.predict(SQ.X3_1net, X3_1plotprovider)
     X3_2fit = mx.predict(SQ.X3_2net, X3_2plotprovider)
     println("Predicted Output:")
@@ -186,8 +190,11 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
     out_data = ML.featuremat(output_sch, table)[:,1:subsample:end]
 
     if any(isnan.(in_data)) || any(isnan.(out_data))
+        println(input_sch)
         display(in_data)
+        display(output_sch)
         display(out_data)
+        # this can happen from mis-spelled keys, OR data like a zero in the standard deviation
         error("NaN in data!!!")
     end
 
@@ -195,15 +202,9 @@ function return_data(fname::String;inputs::Dict=Dict(),outputs::Dict=Dict(),
 end
 
 function add_sq_scatter3d_annotation(ax1::PyCall.PyObject,ax2::PyCall.PyObject,in::Array,out_eng_ary::Dict,i1::Symbol,i2::Symbol,poi::Array,SQmodel::SQ_model;yval::Symbol=:X3_1,yval_std::Symbol=:X3_2,marker::AbstractString="*",s::Int64=100,color=:black,fontsize::Int64=12)
-    in_eng, pred_outputs = SQ_predict(SQmodel,in,repmat(ones(2,1),1,length(out_eng_ary[yval])),use_eng_units=true)
+
+    in_eng, pred_outputs = SQ_predict(SQmodel,in,use_eng_units=true)
     display(in_eng)
-    #  in_eng, pred_outputs = SQ_predict(SQmodel,reshape(in_ary,size(in_ary,1),1),[1. 1.]',use_eng_units=true)
-    #  in_ary = NaN*ones(2,length(in_eng[i1]))
-    #  k = 0
-    #  for i in [i1,i2]
-        #  k += 1
-        #  in_ary[k,:] = in[i]
-    #  end
 
     x_idx = nearest_to_x(in,poi,val_and_idx=false)
     println("#####################")
@@ -377,6 +378,13 @@ function make_label_from_keys(d::Dict)
     end
     return z
 end
+function make_label_from_keys(a::Array)
+    d = Dict()
+    for z in a
+        d[z] = ""
+    end
+    return make_label_from_keys(d)
+end
 
 function make_sq_model(net_type::String,inpts::Array{Symbol};num_epoc::Int64=250,subsample::Int64=1)
     train_fname = "logs/$(net_type)_reference_solver_training.csv"
@@ -393,7 +401,7 @@ function make_sq_model(net_type::String,inpts::Array{Symbol};num_epoc::Int64=250
 
     training_subsample = subsample
     # make model
-    SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,nn_batch_size=150,train_subsample=training_subsample)
+    SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,train_subsample=training_subsample)
 
     info("Writing variable to file:")
     jldopen(string(log_fname,"_SQmodel.jld"),"w") do file

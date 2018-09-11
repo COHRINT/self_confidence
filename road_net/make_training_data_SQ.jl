@@ -173,8 +173,9 @@ function make_training_data(;data_fname::String="nets",logtofile::Bool=false, lo
         read(file,"problem_dict")
     end
 
+    global_rwd_range = Array{Float64}(2,1) # idx 1 is minimun, idx 2 is maximum
+
     i = 0
-    r_dists = Dict()
     for problem in problem_dict
         i += 1
         display(problem_dict)
@@ -219,7 +220,17 @@ function make_training_data(;data_fname::String="nets",logtofile::Bool=false, lo
             with_logger(logger) do
                 r_dist = get_reward_distribution(g,mdp,its_vals=its,d_vals=d_mcts,exp_vals=e_mcts,max_steps=steps,num_repeats=repeats,discounted_rwd=dis_rwd,initial_state=start_state)
             end
-            r_dists[net_num] = r_dist
+
+            # update global reward range
+            minr = minimum(r_dist)
+            maxr = maximum(r_dist)
+            if i==1
+                global_rwd_range[1] = minr
+                global_rwd_range[2] = maxr
+            else
+                minr < global_rwd_range[1] && (global_rwd_range[1] = minr)
+                maxr > global_rwd_range[2] && (global_rwd_range[2] = maxr)
+            end
 
             @info "calculating X3 data"
             SQ_data = X3(r_dist)
@@ -248,10 +259,25 @@ function make_training_data(;data_fname::String="nets",logtofile::Bool=false, lo
             @debug length(data_entry)
             @debug training_data
             push!(training_data,data_entry)
+
+            # store training data with individual network for future use
+            training_data_dict = Dict()
+            n_cntr = 1
+            for n in names(training_data)
+                training_data_dict[n] =  data_entry[n_cntr]
+                n_cntr += 1
+            end
+            problem[:training_data] = training_data_dict
+            problem[:training_data][:r_dist] = r_dist
         end
     end
     CSV.write("$data_fname.csv",training_data)
-    JLD.save("$data_fname.jld","r_dists",r_dists)
+
+    # re-write original file with "r_dist" object added to each network
+    jldopen("$data_fname.jld", "w") do file
+        write(file, "problem_dict", problem_dict)
+        write(file, "global_rwd_range", global_rwd_range)
+    end
 
     if logtofile
         # using the "open(...) do f ... syntax printed the length of the file at the end, this ways doesn't do that

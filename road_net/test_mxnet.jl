@@ -9,6 +9,8 @@ TrainOutput = sin.(TrainInput)+rand(1,samplesize)*0.5
 ValidationInput = rand(1,samplesize)*10
 ValidationOutput = sin.(ValidationInput)+rand(1,samplesize)*0.5
 
+error()
+
 # how to set up data providers using data in memory
 function data_source(batchsize = 100)
   train = mx.ArrayDataProvider(
@@ -57,7 +59,7 @@ mx.fit(model, optimizer, trainprovider,
        initializer = mx.NormalInitializer(0.0, 0.1),
        eval_metric = mx.MSE(),
        eval_data = evalprovider,
-       n_epoch = 200,  # previous setting is batchsize = 200, epoch = 20
+       n_epoch = 10,  # previous setting is batchsize = 200, epoch = 20
                        # implies we did (5000 / 200) * 20 times update in previous `fit`
        callbacks = [mx.speedometer()])
 

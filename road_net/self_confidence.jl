@@ -80,26 +80,29 @@ function X3(c::Distributions.Distribution,t::Distributions.Distribution;
 
     # amount of overlap -- 0: identical, 1: no overlap
     # no sign to indicate `direction' of overlap
-    #  D = bhattacharyya_normal(c,t)
-    D = hellinger_normal(c,t)
+    H = hellinger_normal(c,t)
     sgn = sign(mean(c)-mean(t))
 
-    D_scaled = sgn*(f^alpha)*D
+    H_scaled = sgn*(f^alpha)*H
 
     k = 5.
 
-    SQ = general_logistic(D_scaled,k=k,x0=x0,L=L)
+    SQ = general_logistic(H_scaled,k=k,x0=x0,L=L)
 
     println("###############")
     println("mu_c/s_c: $(mean(c))/$(std(c)), mu_t/s_t: $(mean(t))/$(std(t))")
     println("alpha: $alpha")
-    println("D: $(D), diff_frac: $f, D_scale: $(D_scaled)")
+    println("H: $(H), diff_frac: $f, H_scale: $(H_scaled)")
     println("global rwd: $global_rwd_range")
     println("SQ: $SQ")
     println("###############")
 
     if return_raw_sq
-        return SQ,D_scaled,k
+        D = Dict(:SQ=>SQ,:c=>c,:t=>t,:f=>f,:alpha=>alpha,:H=>H,:k=>k,:x0=>x0,:L=>L,:global_rwd_range=>global_rwd_range)
+        #  println(D)
+        return SQ, D
+
+        #  return SQ,mean(c),mean(t),f,alpha,D
     else
         return SQ
     end

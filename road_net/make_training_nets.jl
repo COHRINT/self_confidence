@@ -35,10 +35,12 @@ function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,
             println("Making network $i of $training_set_size")
 
             if net_type == :random
+                mthd = rand([:watts_strogatz,:expected_degree,:erdos_n_e,:static_scale_free],1)[1]
                 g = rand_network(n,exit_rwd=exit_rwd,caught_rwd=caught_rwd,
                                  sensor_rwd=sensor_rwd,net_seed=seed_list,approx_E=2*n,
-                                 exit_nodes=[8],target_mean_degree=degree,method=:erdos_n_e)
+                                 exit_nodes=[8],target_mean_degree=degree,method=mthd)
             elseif net_type == :original
+                mthd = :original
                 g = original_roadnet(exit_rwd=exit_rwd,caught_rwd=caught_rwd,sensor_rwd=sensor_rwd)
             else
                 println("no other net_types implemented at this time")
@@ -50,16 +52,12 @@ function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,
             #  display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
 
             problem_dict[i] = Dict(:graph=>g,:mcts_its=>mcts_its,:mcts_depth=>mcts_depth,
-                                   :mcts_e=>mcts_e,:net_seed=>seed_list,:n_param=>n,
+                                   :mcts_e=>mcts_e,:net_seed=>seed_list,:num_nodes=>n,
                                    :exit_rwd=>exit_rwd,:caught_rwd=>caught_rwd,
                                    :discount=>discount_fact,:trans_prob=>transition_prob,
                                    :sensor_rwd=>sensor_rwd,:target_degree=>degree,
                                    :evader_start=>evader_start,:pursuer_start=>pursuer_start,
-                                   :exit_loc=>exit_loc)
-        #  catch
-            #  println("Failed making network $i, moving on...")
-            #  problem_dict[i] = Dict(:error=>"failed making network")
-        #  end
+                                   :exit_loc=>exit_loc,:net_gen_method=>mthd)
     return problem_dict
 end
 
