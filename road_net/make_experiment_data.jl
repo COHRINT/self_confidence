@@ -6,15 +6,15 @@ include("make_roadnet_figs.jl")
 include("utilities.jl")
 
 f_loc = "logs"
-experiment_dict = Dict("x4_test"=>Dict(:inpts=>[:tprob],:epocs=>1000,:cmp=>["ok","bad"]))
+experiment_dict = Dict("mturk"=>Dict(:inpts=>[:tprob],:epocs=>1000,:cmp=>["ok","bad"]))
 
-fnames = ["x4_test_ok_solver", "x4_test_bad_solver"]
+fnames = ["mturk_ok_solver", "mturk_bad_solver"]
 i_loc = "imgs"
 
-run = Dict(:figs=>false,:xq=>false,:json=>true)
+run = Dict(:figs=>true,:xq=>true,:json=>true)
 
 if run[:figs]
-    make_figs(fnames,f_loc,i_loc)
+    make_figs(experiment_dict,f_loc,i_loc)
 end
 if run[:xq]
     # run this second, because we create a new file based on solver to which reference is compared
