@@ -86,7 +86,6 @@ end
 
 function load_network(nn_prefix::String, epoch::Int,sq_fname::String)
     # the default one doesn't work for some reason, so I'll do it by hand
-    println(nn_prefix)
     arch1, arg_params1, aux_params1 = mx.load_checkpoint(string(nn_prefix,"_net1"),epoch)
     arch2, arg_params2, aux_params2 = mx.load_checkpoint(string(nn_prefix,"_net2"),epoch)
 

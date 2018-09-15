@@ -61,6 +61,32 @@ function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,
     return problem_dict
 end
 
+function make_nets(net::Dict)
+    net_dict = net[:nets]
+    net_type = net_dict[:net_type]
+    discount = net_dict[:d_bnds]
+    t_bnds = net_dict[:t_bnds]
+    mcts_e = net_dict[:e_bnds]
+    mcts_d = net_dict[:solver_depth]
+    mcts_its_bnds = net_dict[:mcts_its_bnds]
+    n_bnds = net_dict[:n_bnds]
+    deg_bnds = net_dict[:deg_bnds]
+    caught_bnds = net_dict[:caught_rwd_bnds]
+    sense_bnds = net_dict[:sense_rwd_bnds]
+    ext_bnds = net_dict[:exit_rwd_bnds]
+    fldr = net[:fldr]
+    fname = net[:fname]
+    num_nets = net_dict[:num_nets]
+    seed = net_dict[:seed]
+
+    fn = joinpath(fldr,fname*".jld")
+
+    make_nets(num_nets,fname=fn,exit_rwd_bounds=ext_bnds,
+              sensor_rwd_bounds=sense_bnds,caught_rwd_bounds=caught_bnds,degree_bounds=deg_bnds,
+              n_bounds=n_bnds,mcts_its_bounds=mcts_its_bnds,mcts_depth_bounds=mcts_d,
+              mcts_e_bounds=mcts_e,trans_prob_bounds=t_bnds,
+              discount_fact_bounds=discount,net_type=net_type,random_seed=seed)
+end
 function make_nets(training_set_size::Int64;exit_rwd_bounds::Array{Float64}=[2000.],
                    sensor_rwd_bounds::Array{Float64}=[-100.],caught_rwd_bounds::Array{Float64}=[-2000.],
                    degree_bounds::Array{Float64}=[3.0,7.0],n_bounds::Array{Int64}=[15,75],

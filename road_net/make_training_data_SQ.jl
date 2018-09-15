@@ -146,6 +146,21 @@ function netprops2array(g::roadnet_with_pursuer)
 
 end
 
+function make_training_data(net::Dict)
+    net_dict = net[:sims]
+    reps = net_dict[:repeats]
+    log_to_file = net_dict[:log_to_file]
+    log_fname = net_dict[:log_fname]
+    log_lvl = net_dict[:log_lvl]
+    sim_steps = net_dict[:steps]
+    dis_rwd = net_dict[:dis_rwd]
+    fname = net[:fname]
+
+    fn = joinpath(fldr,fname)
+
+    make_training_data(data_fname=fn,repeats=reps,sim_steps=sim_steps,dis_rwd=dis_rwd)
+end
+
 function make_training_data(;data_fname::String="nets",logtofile::Bool=false, logfname::String="logs/$(now()).log",loglvl::Symbol=:debug,repeats::Int64=25,sim_steps::Int64=-1,dis_rwd::Bool=false)
 
     # initialize the DataFrame

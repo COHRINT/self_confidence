@@ -386,9 +386,10 @@ function make_label_from_keys(a::Array)
     return make_label_from_keys(d)
 end
 
-function make_sq_model(net_type::String,inpts::Array{Symbol};num_epoc::Int64=250,subsample::Int64=1)
-    train_fname = "logs/$(net_type)_reference_solver_training.csv"
-    test_fname = "logs/$(net_type)_bad_solver.csv"
+function make_sq_model(net_type::String,inpts::Array{Symbol};num_epoc::Int64=250,subsample::Int64=1,
+                       trusted_fname::String="",net_folder::String="nn_logs")
+    train_fname = trusted_fname
+    test_fname = trusted_fname #see if this works... I don't this is important for training
 
     #  inputs = Dict(:tprob=>"ML.Continuous",:e_mcts=>"ML.Continuous")
     inputs = Dict()
@@ -397,14 +398,15 @@ function make_sq_model(net_type::String,inpts::Array{Symbol};num_epoc::Int64=250
     end
     outputs = Dict(:X3_1=>"ML.Continuous",:X3_2=>"ML.Continuous")
 
-    log_fname = "nn_logs/$(net_type)_$(make_label_from_keys(inputs))"
+    log_fname = joinpath(net_folder,"$(net_type)_$(make_label_from_keys(inputs))")
 
     training_subsample = subsample
     # make model
     SQmodel = make_nn_SQ_model(train_fname,test_fname,log_fname,input_dict=inputs,output_dict=outputs,nn_epoc=num_epoc,train_subsample=training_subsample)
 
     info("Writing variable to file:")
-    jldopen(string(log_fname,"_SQmodel.jld"),"w") do file
+    println(log_fname)
+    jldopen(log_fname*"_SQmodel.jld","w") do file
         JLD.addrequire(file,MXNet)
         JLD.addrequire(file,JuliaDB)
         write(file,"train_fname",train_fname)

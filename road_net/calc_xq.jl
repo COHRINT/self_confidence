@@ -8,93 +8,108 @@ include("self_confidence.jl")
 
 function get_net_input_vals(net::Dict{Symbol,Any},inpts::Array{Symbol})
     info("# Getting inputs")
-    ins = Array{Float64}(length(inpts))
+    ins = Array{Float64}(length(inpts),1)
     for (i,n) in zip(collect(1:length(inpts)),inpts)
         ins[i] = net[:training_data][n]
     end
     return ins
 end
 
-function get_surrogate(fname::String,epocs,fldr::String,net_type::String,inpts::Array{Symbol})
+function get_surrogate(fname::String,epocs::Int64,fldr::String,net_type::String,
+                       inpts::Array{Symbol},trusted_fname::String)
     # make an sq model if it doesn't exist already
     if !(any([contains(x,fname*"_") for x in readdir(fldr)]))
-        println("No nn file exists, making one now")
-        make_sq_model(net_type,inpts,num_epoc=epocs)
+        info("No nn file exists, making one now")
+        make_sq_model(net_type,inpts,num_epoc=epocs,trusted_fname=trusted_fname)
     end
 
+    info("Loading xQ Model")
     param_files = searchdir(fldr,fname,".params")
     num_epocs = parse(split(match(r"-\d+",param_files[1]).match,"-")[2])
 
-    SQmodel = load_network(fldr*fname,num_epocs,fldr*fname*"_SQmodel.jld")
+    fn = joinpath(fldr,fname)
+    SQmodel = load_network(fn,num_epocs,fn*"_SQmodel.jld")
 
     return SQmodel
 end
 
 function calculate_sq(experiment_dict)
-    for expr in keys(experiment_dict)
-        net_type = expr
-        inpts = experiment_dict[expr][:inpts]
-        epocs = experiment_dict[expr][:epocs]
-        cmp_list = experiment_dict[expr][:cmp]
-        println("Processing: $(experiment_dict[expr])")
-        for cmp in cmp_list
-            println("running '$cmp' data")
+    trusted_cond = 0
+    for c in keys(experiment_dict[:conditions])
+        if experiment_dict[:conditions][c][:role] == :trusted
+            trusted_cond = c
+        end
+    end
+    for expr in keys(experiment_dict[:conditions])
+        net_type = experiment_dict[:name]
+        inpts = experiment_dict[:xQ][:inpts]
+        epocs = experiment_dict[:xQ][:epocs]
+        println("Processing: $(experiment_dict[:conditions][expr])")
 
-            ###### Define the variables for the problem
-            inputs = Dict()
-            for i in inpts
-                inputs[i] = "ML.Continuous"
-            end
+        println("running '$expr' data")
 
-            log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
-            log_loc = "nn_logs/"
+        ###### Define the variables for the problem
+        inputs = Dict()
+        for i in inpts
+            inputs[i] = "ML.Continuous"
+        end
 
-            ###### get surrogate model
-            SQmodel = get_surrogate(log_fname,epocs,log_loc,net_type,inpts)
-            info("restoring limits")
-            limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
-            println("limits: $limits")
-            println("out_sch: $(SQmodel.output_sch)")
+        log_fname = "$(net_type)_$(make_label_from_keys(inputs))"
+        log_loc = experiment_dict[:xQ][:nn_loc]
+        tfname = experiment_dict[:conditions][trusted_cond][:fname]
+        tfold = experiment_dict[:conditions][trusted_cond][:fldr]
+        cfname = experiment_dict[:conditions][expr][:fname]
+        cfold = experiment_dict[:conditions][expr][:fldr]
+        trusted_fname = joinpath(tfold,tfname*".csv")
 
-            ###### calculate xQ for each net
-            f = "logs/$(net_type)_$(cmp)_solver.jld"
-            df = JLD.load(f)
-            d = df["problem_dict"]
-            g = df["global_rwd_range"]
-            info("Processing Networks")
-            p = Progress(length(d),barglyphs=BarGlyphs("[=> ]"),color=:white)
-            j = 0
-            for net in d
-                net_num = net[1]
-                net = net[2]
-                e_start = net[:evader_start]
-                p_start = net[:pursuer_start]
-                ins = get_net_input_vals(net,inpts)
+        ###### get surrogate model
+        SQmodel = get_surrogate(log_fname,epocs,log_loc,net_type,inpts,trusted_fname)
+        info("restoring limits")
+        limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
+        println("limits: $limits")
+        println("out_sch: $(SQmodel.output_sch)")
 
-                info("getting predictions")
-                println("ins: $ins, $(typeof(ins))")
-                _notused, R_star = SQ_predict(SQmodel,ins,use_eng_units=true)
-                R_star_μ = R_star[:X3_1][1]
-                R_star_σ = R_star[:X3_2][1]
+        ###### calculate xQ for each net
+        df = JLD.load(joinpath(cfold,cfname*".jld"))
+        d = df["problem_dict"]
+        g = df["global_rwd_range"]
+        info("Processing Networks")
+        p = Progress(length(d),barglyphs=BarGlyphs("[=> ]"),color=:white)
+        j = 0
+        for net in d
+            net_num = net[1]
+            net = net[2]
+            e_start = net[:evader_start]
+            p_start = net[:pursuer_start]
+            ins = get_net_input_vals(net,inpts)
 
-                R_μ = net[:training_data][:X3_1] # mean of rwd dist
-                R_σ = net[:training_data][:X3_2] # std of rwd dist
-                x_Q, x_Q_Dict = X3(Normal(R_μ,R_σ),Normal(R_star_μ,R_star_σ),global_rwd_range=g,return_raw_sq=true)
+            info("getting predictions")
+            println("ins: $ins, $(typeof(ins))")
+            _notused, R_star = SQ_predict(SQmodel,ins,use_eng_units=true)
+            R_star_μ = R_star[:X3_1][1]
+            R_star_σ = R_star[:X3_2][1]
 
-                net[:solver_quality] = Dict{Symbol,Any}()
-                net[:solver_quality][:x_QDict] = deepcopy(x_Q_Dict)
-                net[:solver_quality][:R_star] = R_star
-                net[:solver_quality][:X_Q] = x_Q
-                j += 1
-                ProgressMeter.next!(p; showvalues = [(:network,"$j of $(length(d))")])
-            end
-            # re-write original file with xQ added to each network
-            out_fname = joinpath("logs",net_type*"_"*cmp*"_"*make_label_from_keys(inputs)*"_solver.jld")
-            info("# writing to $out_fname")
-            jldopen(out_fname, "w") do file
-                write(file, "problem_dict", d)
-                write(file, "global_rwd_range", g)
-            end
+            R_μ = net[:training_data][:X3_1] # mean of rwd dist
+            R_σ = net[:training_data][:X3_2] # std of rwd dist
+
+            info("R_star_μ = $R_star_μ, R_star_σ = $R_star_σ")
+            info("R_μ = $R_μ, R_σ = $R_σ")
+
+            x_Q, x_Q_Dict = X3(Normal(R_μ,R_σ),Normal(R_star_μ,R_star_σ),global_rwd_range=g,return_raw_sq=true)
+
+            net[:solver_quality] = Dict{Symbol,Any}()
+            net[:solver_quality][:x_QDict] = deepcopy(x_Q_Dict)
+            net[:solver_quality][:R_star] = R_star
+            net[:solver_quality][:X_Q] = x_Q
+            j += 1
+            ProgressMeter.next!(p; showvalues = [(:network,"$j of $(length(d))")])
+        end
+        # re-write original file with xQ added to each network
+        out_fname = joinpath("logs",net_type*"_$(expr)_"*make_label_from_keys(inputs)*"_solver.jld")
+        info("# writing to $out_fname")
+        jldopen(out_fname, "w") do file
+            write(file, "problem_dict", d)
+            write(file, "global_rwd_range", g)
         end
     end
 end

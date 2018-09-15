@@ -1,38 +1,15 @@
-num_train_nets = 750
-train_t_bnds = [0.0,1.0]
-train_e_bnds = [1000.]
-train_depth = [8]
-train_deg_bnds = [4.]
-train_net_type = :random
-train_n_bnds = [8,120]
-train_d_bnds = [0.95]
-training_exit_rwd_bnds = [2000.]
-training_sense_rwd_bnds = [-5.,-250.]
-training_caught_rwd_bnds = [-2000.]
-training_mcts_bnds = [1000]
+cond1 = make_condition_dict(num_nets=750,solver_depth=[8],seed=5,sense_rwd_bnds=[-5.,-250.],
+                            n_bnds=[8,120],role=:trusted)
+cond2 = make_condition_dict(num_nets=250,solver_depth=[3],seed=4,sense_rwd_bnds=[-5.,-250.],
+                            n_bnds=[8,120],role=:candidate)
+cond3 = make_condition_dict(num_nets=250,solver_depth=[1],seed=3,sense_rwd_bnds=[-5.,-250.],
+                            n_bnds=[8,120],role=:candidate)
 
-num_ok_nets = 250
-ok_t_bnds = [0.0,1.0]
-ok_e_bnds = [1000.]
-ok_depth = [3]
-ok_deg_bnds = [4.]
-ok_net_type = :random
-ok_n_bnds = [8,120]
-ok_d_bnds = [0.95]
-ok_exit_rwd_bnds = [2000.]
-ok_sense_rwd_bnds = [-5.,-250.]
-ok_caught_rwd_bnds = [-2000.]
-ok_mcts_bnds = [1000]
+exp_dict = Dict(:name=>"transition_vary", :conditions=>Dict(1=>cond1, 2=>cond2, 3=> cond3))
 
-num_bad_nets = 250
-bad_t_bnds = [0.0,1.0]
-bad_e_bnds = [1000.]
-bad_depth = [1]
-bad_deg_bnds = [4.]
-bad_net_type = :random
-bad_n_bnds = [8,120]
-bad_d_bnds = [0.95]
-bad_exit_rwd_bnds = [2000.]
-bad_sense_rwd_bnds = [-5.,-250.]
-bad_caught_rwd_bnds = [-2000.]
-bad_mcts_bnds = [1000]
+fldr = "logs"
+for x in keys(exp_dict[:conditions])
+    fname = make_useful_fname(exp_dict,x)
+    exp_dict[:conditions][x][:fname] = fname
+    exp_dict[:conditions][x][:fldr] = fldr
+end
