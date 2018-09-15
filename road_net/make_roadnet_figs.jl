@@ -29,7 +29,7 @@ function make_figs(experiment_dict::Dict,f_loc::String,i_loc::String)
             net = net[2]
             e_start = net[:evader_start]
             p_start = net[:pursuer_start]
-            net_fname = "$(net_type)_$(cmp)_net_$net_num"
+            net_fname = "$(net_type)_$(expr)_net_$net_num"
             f_type = :svg
             display_network(net[:graph],evader_locs=[e_start],pursuer_locs=[p_start],scale=1.0,
                             fname=joinpath(i_loc,net_fname),ftype=f_type)

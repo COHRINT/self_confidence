@@ -12,7 +12,7 @@ include("experiment_utilities.jl")
 
 i_loc = "imgs"
 
-run = Dict(:figs=>true,:xq=>true,:json=>true)
+run = Dict(:figs=>true,:xq=>false,:json=>false)
 
 if run[:figs]
     info("Making Figures")
