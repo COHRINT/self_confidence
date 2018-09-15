@@ -1,4 +1,3 @@
-workspace()
 if nworkers() < 5 && nworkers() > 1
     nw = 150
     println("Adding $nw workers...")
