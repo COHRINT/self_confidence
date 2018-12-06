@@ -14,9 +14,8 @@ println("including libraries")
 include("utilities.jl")
 println("done")
 
-experiment_name = "mturk_fast"
+experiment_name = "transition_vary"
 include("experiment_utilities.jl")
-
 
 create_nets= true
 if create_nets

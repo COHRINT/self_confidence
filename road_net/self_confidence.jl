@@ -57,8 +57,8 @@ function X3(c::Array{Float64},t::Array{Float64};
     c = Normal(mean(c),sc)
     t = Normal(mean(t),st)
     if return_raw_sq
-        (SQ,sq,k) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq,alpha=alpha)
-        return SQ,sq,k
+        (SQ,D) = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq,alpha=alpha)
+        return SQ,D
     else
         SQ = X3(c,t;global_rwd_range=global_rwd_range,L=L,x0=x0,return_raw_sq=return_raw_sq,alpha=alpha)
         return SQ

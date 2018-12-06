@@ -6,7 +6,7 @@ cond4 = make_condition_dict(num_nets=100,mcts_d=[3],n_bnds=[8,35],seed=2)
 cond5 = make_condition_dict(num_nets=100,mcts_d=[4,7],n_bnds=[8,35],seed=1)
 
 exp_dict = Dict(:name=>"mturk", :conditions=>Dict(1=>cond1, 2=>cond2, 3=> cond3,4=> cond4,5=> cond5),
-                :xQ=>Dict(:inpts=>[:tprob,:N],:epocs=>1000,:cmp=>[2,3,4,5]))
+                :xQ=>Dict(:inpts=>[:tprob,:N],:epocs=>1000,:cmp=>[2,3,4,5],:nn_loc=>"nn_logs"))
 
 fldr = "logs"
 for x in keys(exp_dict[:conditions])

@@ -6,13 +6,21 @@ include("make_SQ_model.jl")
 include("utilities.jl")
 include("self_confidence.jl")
 
-function get_net_input_vals(net::Dict{Symbol,Any},inpts::Array{Symbol})
+function get_net_input_vals(net::Dict{Symbol,Any},inpts::Array{Symbol},sch::ML.Schema;return_scaled::Bool=false)
     info("# Getting inputs")
     ins = Array{Float64}(length(inpts),1)
+    scaled_ins = Array{Float64}(length(inpts),1)
     for (i,n) in zip(collect(1:length(inpts)),inpts)
         ins[i] = net[:training_data][n]
+        if return_scaled
+            scaled_ins[i] = (ins[i]-mean(sch[n]))/std(sch[n])
+        end
     end
-    return ins
+    if return_scaled
+        return ins, scaled_ins
+    else
+        return ins
+    end
 end
 
 function get_surrogate(fname::String,epocs::Int64,fldr::String,net_type::String,
@@ -60,10 +68,10 @@ function calculate_sq(experiment_dict)
         tfold = experiment_dict[:conditions][trusted_cond][:fldr]
         cfname = experiment_dict[:conditions][expr][:fname]
         cfold = experiment_dict[:conditions][expr][:fldr]
-        trusted_fname = joinpath(tfold,tfname*".csv")
+        trusted_path = joinpath(tfold,tfname*".csv")
 
         ###### get surrogate model
-        SQmodel = get_surrogate(log_fname,epocs,log_loc,net_type,inpts,trusted_fname)
+        SQmodel = get_surrogate(log_fname,epocs,log_loc,net_type,inpts,trusted_path)
         info("restoring limits")
         limits = restore_eng_units(SQmodel.range,SQmodel.output_sch)
         println("limits: $limits")
@@ -81,11 +89,13 @@ function calculate_sq(experiment_dict)
             net = net[2]
             e_start = net[:evader_start]
             p_start = net[:pursuer_start]
-            ins = get_net_input_vals(net,inpts)
+            ins, scaled_ins = get_net_input_vals(net,inpts,SQmodel.input_sch,return_scaled=true)
+            #  println(ins)
+            #  println(scaled_ins)
 
             info("getting predictions")
             println("ins: $ins, $(typeof(ins))")
-            _notused, R_star = SQ_predict(SQmodel,ins,use_eng_units=true)
+            _notused, R_star = SQ_predict(SQmodel,scaled_ins,use_eng_units=true)
             R_star_μ = R_star[:X3_1][1]
             R_star_σ = R_star[:X3_2][1]
 
@@ -94,6 +104,12 @@ function calculate_sq(experiment_dict)
 
             info("R_star_μ = $R_star_μ, R_star_σ = $R_star_σ")
             info("R_μ = $R_μ, R_σ = $R_σ")
+            # make sure sigma isn't zero or negative (i.e. model could have bad prediction, or data could be all an identical number)
+            #  R_star_σ <= 0. ? error() : nothing
+            #  R_σ <= 0. ? error() : nothing
+            R_star_σ <= 0. ? R_star_σ = 1. : nothing
+            R_σ <= 0. ? R_σ = 1. : nothing
+            #  error()
 
             x_Q, x_Q_Dict = X3(Normal(R_μ,R_σ),Normal(R_star_μ,R_star_σ),global_rwd_range=g,return_raw_sq=true)
 

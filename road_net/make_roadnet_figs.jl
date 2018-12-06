@@ -7,7 +7,6 @@ include("./network_library.jl")
 function make_figs(experiment_dict::Dict,f_loc::String,i_loc::String)
     for expr in keys(experiment_dict[:conditions])
         net_type = experiment_dict[:name]
-        inpts = experiment_dict[:xQ][:inpts]
         fn = experiment_dict[:conditions][expr][:fname]
         fldr = experiment_dict[:conditions][expr][:fldr]
 

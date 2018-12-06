@@ -65,7 +65,6 @@ function make_nn_SQ_model(train_fname::String,valid_fname::String,log_fname::Str
     # get data providers
     # Array(training_out[1,:]') -- this is some crazy conversion so the output is the right type....
     if nn_batch_size < 0
-
         # no value was provided
         nn_batch_size = round(Int,0.25*length(training_in))
     end
