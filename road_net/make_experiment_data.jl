@@ -29,11 +29,7 @@ end
 
 if run[:json]
     info("## Making .json file for experiment data")
-    srand(22222) # for consistent results ******
-    # 222 has 21s, 24f
-    # 2 has 24 successes and 21 failures, distribution looks OK too
-    # 999990 has 21 success and 24 failures, but seems to be lucky when xP is low and xQ is high
-    # 999 has 18 successes
+    srand(99) #for consistent results
     for expr in keys(exp_dict[:conditions])
         net_type = exp_dict[:name]
         inpts = exp_dict[:xQ][:inpts]
@@ -65,8 +61,9 @@ if run[:json]
 
             #  r_star_mean = net_vals[:training_data][:X3_1] # Old, WRONG way, leave hear for illustrative purposes
             r_star_mean = net_vals[:solver_quality][:R_star][:X3_1]
+            #  if all(r_star_mean .> o) #old WRONG way
             #  if all(r_star_mean .> o) && all(o .< 0.0)
-            if all(o .< -0.0)
+            if all(o .< 0.0)
                 if n[:xQ] > 1.15 && n[:xP] > 0.25
                     # this is an unexpected outcome
                     plot_rwd_dists(net[1],n[:xQ],n[:xP],net_vals[:training_data][:r_dist],net_vals[:solver_quality][:R_star],o,fldr="figs/exp_data/"*net_type*"_$(expr)",fname="$(fname)_$(net[1])",outcome=:fail)
@@ -95,7 +92,7 @@ if run[:json]
             n[:mcts_depth] = net_vals[:mcts_depth]
         end
 
-        json_fname = "logs/experiment_data_$(fname)_new.json"
+        json_fname = "logs/experiment_data_$(fname).json"
         info("Writing to $json_fname")
         open(json_fname,"w") do f
             dat = JSON.json(exp_json,4)
