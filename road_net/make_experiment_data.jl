@@ -5,6 +5,7 @@ import PyPlot
 include("calc_xq.jl")
 include("make_roadnet_figs.jl")
 include("utilities.jl")
+include("plot_rwd_dists.jl")
 
 # make experiment dict
 experiment_name = "mturk"
@@ -28,7 +29,7 @@ end
 
 if run[:json]
     info("## Making .json file for experiment data")
-    srand(22222) # for consistent results
+    srand(22222) # for consistent results ******
     # 222 has 21s, 24f
     # 2 has 24 successes and 21 failures, distribution looks OK too
     # 999990 has 21 success and 24 failures, but seems to be lucky when xP is low and xQ is high
@@ -64,9 +65,18 @@ if run[:json]
 
             #  r_star_mean = net_vals[:training_data][:X3_1] # Old, WRONG way, leave hear for illustrative purposes
             r_star_mean = net_vals[:solver_quality][:R_star][:X3_1]
-            if all(r_star_mean .> o) && all(o .< 0.0)
+            #  if all(r_star_mean .> o) && all(o .< 0.0)
+            if all(o .< -0.0)
+                if n[:xQ] > 1.15 && n[:xP] > 0.25
+                    # this is an unexpected outcome
+                    plot_rwd_dists(net[1],n[:xQ],n[:xP],net_vals[:training_data][:r_dist],net_vals[:solver_quality][:R_star],o,fldr="figs/exp_data/"*net_type*"_$(expr)",fname="$(fname)_$(net[1])",outcome=:fail)
+                end
                 outcome = "fail"
             else
+                if n[:xQ] < 0.75 && n[:xP] < -0.1
+                    # this is an unexpected outcome
+                    plot_rwd_dists(net[1],n[:xQ],n[:xP],net_vals[:training_data][:r_dist],net_vals[:solver_quality][:R_star],o,fldr="figs/exp_data/"*net_type*"_$(expr)",fname="$(fname)_$(net[1])",outcome=:success)
+                end
                 outcome = "success"
             end
             n[:outcome] = outcome
@@ -85,7 +95,7 @@ if run[:json]
             n[:mcts_depth] = net_vals[:mcts_depth]
         end
 
-        json_fname = "logs/experiment_data_$(fname).json"
+        json_fname = "logs/experiment_data_$(fname)_new.json"
         info("Writing to $json_fname")
         open(json_fname,"w") do f
             dat = JSON.json(exp_json,4)
