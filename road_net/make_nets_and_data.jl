@@ -14,7 +14,7 @@ println("including libraries")
 include("utilities.jl")
 println("done")
 
-experiment_name = "transition_vary"
+experiment_name = "mturk_supplement"
 include("experiment_utilities.jl")
 
 create_nets= true

@@ -48,6 +48,8 @@ elseif experiment_name == "mturk_fast"
     include("experiment_params/mturk_fast.jl")
 elseif experiment_name == "mturk"
     include("experiment_params/mturk.jl")
+elseif experiment_name == "mturk_supplement"
+    include("experiment_params/mturk_supplement.jl")
 elseif experiment_name == "x4_test"
     include("experiment_params/x4_test.jl")
 elseif experiment_name == "n_vary"
