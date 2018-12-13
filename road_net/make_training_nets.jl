@@ -29,6 +29,15 @@ function n_rand_in_range(A::Array,N::Int64)
    end
 end
 
+function get_exit_node(g::MetaGraphs.MetaGraph)
+    e_nodes = g.gprops[:exit_nodes]
+    if length(e_nodes) > 1
+        error("something is wrong, should only be length 1 in this experiment")
+    else
+        return e_nodes[1]
+    end
+end
+
 function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,seed_list,degree,mcts_its,mcts_depth,mcts_e,discount_fact,transition_prob,fname,net_type)
     problem_dict = Dict()
         #  try
@@ -48,7 +57,7 @@ function populate_net_dict(i,training_set_size,n,exit_rwd,caught_rwd,sensor_rwd,
 
             evader_start = 1
             pursuer_start = 4
-            exit_loc = 13
+            exit_loc = get_exit_node(g)
             #  display_network(g,evader_locs=[evader_start],pursuer_locs=[pursuer_start],fname="logs/net$i")
 
             problem_dict[i] = Dict(:graph=>g,:mcts_its=>mcts_its,:mcts_depth=>mcts_depth,
