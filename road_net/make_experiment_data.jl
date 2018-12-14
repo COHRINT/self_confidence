@@ -39,7 +39,7 @@ end
 
 if run[:json]
     info("## Making .json file for experiment data")
-    srand(55) #for consistent results
+    srand(5555) #for consistent results
     for expr in keys(exp_dict[:conditions])
         net_type = exp_dict[:name]
         inpts = exp_dict[:xQ][:inpts]
