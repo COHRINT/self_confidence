@@ -118,7 +118,7 @@ function rand_network(N::Int64;exit_rwd::Float64=1000.,caught_rwd::Float64=-2000
     # net_seed: random seed to be able to regenerate a network
     # target_mean_degree: desired average degree to constrain the action space, if using method=erdos_n_p
     # approx_E: approximate number of edges to be used if using method=:erdos_n_e (some randomness added here)
-    # method: specifies using erdos_n_p or erdos_n_e
+    # method: specifies using different methods
 
     g = SimpleGraph(2)
     its = 0
